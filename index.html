@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Get 笔记下载器</title>
+  <style>
+    :root {
+      --bg: #f3efe7;
+      --bg-accent: #efe6d7;
+      --surface: rgba(255, 251, 245, 0.88);
+      --surface-strong: #fffdf8;
+      --surface-soft: #f8f1e6;
+      --line: rgba(106, 79, 53, 0.14);
+      --line-strong: rgba(106, 79, 53, 0.24);
+      --text: #24180d;
+      --muted: #715d48;
+      --brand: #a35a24;
+      --brand-strong: #7d4217;
+      --brand-soft: rgba(163, 90, 36, 0.12);
+      --teal: #246a65;
+      --teal-soft: rgba(36, 106, 101, 0.12);
+      --shadow: 0 20px 45px rgba(53, 33, 16, 0.08);
+      --radius-xl: 28px;
+      --radius-lg: 20px;
+      --radius-md: 14px;
+      --radius-sm: 999px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: "Segoe UI", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(163, 90, 36, 0.16), transparent 28%),
+        radial-gradient(circle at top right, rgba(36, 106, 101, 0.14), transparent 24%),
+        linear-gradient(180deg, #f8f3ea 0%, var(--bg) 44%, #ede4d6 100%);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.28) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.28) 1px, transparent 1px);
+      background-size: 40px 40px;
+      mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.6), transparent 80%);
+      opacity: 0.35;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      width: min(1220px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 32px 0 44px;
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 22px;
+      align-items: start;
+    }
+
+    .hero,
+    .panel,
+    .note-detail,
+    .settings-modal {
+      border: 1px solid rgba(255, 255, 255, 0.52);
+      background: var(--surface);
+      backdrop-filter: blur(18px);
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      padding: 28px;
+      border-radius: var(--radius-xl);
+      margin-bottom: 18px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      right: -60px;
+      top: -50px;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(163, 90, 36, 0.14), transparent 68%);
+    }
+
+    .hero-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.66);
+      color: var(--brand-strong);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      font-family: "Georgia", "Times New Roman", serif;
+      font-size: clamp(28px, 3.6vw, 40px);
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+    }
+
+    .brand-line {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .brand-mark {
+      width: 56px;
+      height: 56px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, rgba(163, 90, 36, 0.18), rgba(36, 106, 101, 0.18));
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      font-size: 28px;
+    }
+
+    .brand-copy p {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .hero-stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      min-width: 280px;
+    }
+
+    .stat-card {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.64);
+      border: 1px solid rgba(255, 255, 255, 0.55);
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .workspace {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      overflow: visible;
+    }
+
+    .panel {
+      position: relative;
+      overflow: visible;
+      padding: 22px;
+      border-radius: var(--radius-xl);
+    }
+
+    .filters-panel {
+      z-index: 40;
+    }
+
+    .results-panel {
+      z-index: 10;
+    }
+
+    .panel-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .panel-title h2,
+    .panel-title h3 {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .panel-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .search-row {
+      display: grid;
+      gap: 12px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .field label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .field input {
+      width: 100%;
+      padding: 13px 16px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.84);
+      color: var(--text);
+      font-size: 14px;
+      transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+    }
+
+    .field input:focus {
+      outline: none;
+      border-color: rgba(163, 90, 36, 0.45);
+      box-shadow: 0 0 0 4px rgba(163, 90, 36, 0.1);
+      transform: translateY(-1px);
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .search-row {
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      margin-bottom: 18px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 18px;
+      border: 1px solid transparent;
+      border-radius: 16px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 700;
+      transition: transform 0.2s, box-shadow 0.2s, background 0.2s, border-color 0.2s;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--brand), var(--brand-strong));
+      color: #fff7ef;
+      box-shadow: 0 10px 18px rgba(125, 66, 23, 0.16);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.72);
+      color: var(--text);
+      border-color: var(--line);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border-color: var(--line);
+    }
+
+    .btn-accent {
+      background: linear-gradient(135deg, #296d67, #1d5a55);
+      color: #f2fffc;
+      box-shadow: 0 10px 18px rgba(29, 90, 85, 0.16);
+    }
+
+    .status-bar {
+      display: none;
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      font-size: 13px;
+      border: 1px solid transparent;
+    }
+
+    .status-bar.success {
+      display: block;
+      background: rgba(36, 106, 101, 0.12);
+      color: #1f5b56;
+      border-color: rgba(36, 106, 101, 0.2);
+    }
+
+    .status-bar.error {
+      display: block;
+      background: rgba(163, 90, 36, 0.12);
+      color: #7d4217;
+      border-color: rgba(163, 90, 36, 0.2);
+    }
+
+    .status-bar.info {
+      display: block;
+      background: rgba(83, 92, 145, 0.12);
+      color: #3e4675;
+      border-color: rgba(83, 92, 145, 0.18);
+    }
+
+    .filters-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .filter-dropdown {
+      position: relative;
+    }
+
+    .dropdown-trigger {
+      width: 100%;
+      justify-content: space-between;
+      background: rgba(255, 255, 255, 0.78);
+      color: var(--text);
+      border-color: var(--line);
+    }
+
+    .dropdown-label {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+    }
+
+    .dropdown-label strong {
+      font-size: 13px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .dropdown-label span {
+      font-size: 13px;
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .dropdown-arrow {
+      font-size: 18px;
+      color: var(--muted);
+      transition: transform 0.2s;
+    }
+
+    .filter-dropdown.open .dropdown-arrow {
+      transform: rotate(180deg);
+    }
+
+    .dropdown-panel {
+      position: absolute;
+      top: calc(100% + 10px);
+      left: 0;
+      right: 0;
+      z-index: 120;
+      display: none;
+      padding: 14px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255, 251, 245, 0.98);
+      box-shadow: 0 18px 35px rgba(53, 33, 16, 0.12);
+      backdrop-filter: blur(16px);
+    }
+
+    .filter-dropdown.open .dropdown-panel {
+      display: block;
+    }
+
+    .filter-search {
+      margin-bottom: 12px;
+      padding: 11px 12px;
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #fffdf9;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .filter-options {
+      display: grid;
+      gap: 8px;
+      max-height: 220px;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+
+    .filter-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .filter-option:hover {
+      border-color: var(--line);
+      transform: translateY(-1px);
+    }
+
+    .filter-option input {
+      accent-color: var(--brand);
+    }
+
+    .filter-option-text {
+      min-width: 0;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .filter-empty {
+      padding: 8px 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .active-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .active-filters.empty {
+      color: var(--muted);
+      font-size: 13px;
+      padding: 8px 0;
+    }
+
+    .mini-chip {
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.78);
+      color: var(--text);
+    }
+
+    .results-toolbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .results-meta {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .batch-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .batch-counter {
+      color: var(--muted);
+      font-size: 13px;
+      margin-right: 2px;
+    }
+
+    .notes-container {
+      display: grid;
+      gap: 14px;
+      max-height: 680px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .note-item {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: start;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(247, 240, 230, 0.84));
+      transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+      cursor: pointer;
+    }
+
+    .note-item:hover {
+      transform: translateY(-2px);
+      border-color: rgba(163, 90, 36, 0.24);
+      box-shadow: 0 12px 24px rgba(70, 45, 24, 0.08);
+    }
+
+    .note-item.selected {
+      border-color: rgba(163, 90, 36, 0.32);
+      box-shadow: inset 0 0 0 1px rgba(163, 90, 36, 0.12);
+    }
+
+    .note-checkbox {
+      padding-top: 4px;
+    }
+
+    .note-checkbox input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--brand);
+      cursor: pointer;
+    }
+
+    .note-main {
+      min-width: 0;
+    }
+
+    .note-heading {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: baseline;
+      margin-bottom: 10px;
+    }
+
+    .note-title {
+      font-size: 17px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .note-date {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .note-summary {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+      margin-bottom: 14px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .note-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .note-type {
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      background: rgba(36, 24, 13, 0.06);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .mini-chip {
+      padding: 6px 10px;
+      font-size: 12px;
+      line-height: 1;
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .mini-chip:hover {
+      transform: translateY(-1px);
+      border-color: var(--line-strong);
+    }
+
+    .mini-chip.topic {
+      background: rgba(36, 106, 101, 0.08);
+      color: var(--teal);
+    }
+
+    .mini-chip.tag {
+      background: rgba(163, 90, 36, 0.09);
+      color: var(--brand-strong);
+    }
+
+    .note-open {
+      padding-top: 2px;
+      color: var(--muted);
+      font-size: 20px;
+    }
+
+    .load-more {
+      margin-top: 16px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .loading,
+    .empty-state {
+      text-align: center;
+      padding: 56px 18px;
+      color: var(--muted);
+      border: 1px dashed rgba(106, 79, 53, 0.18);
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.54);
+    }
+
+    .empty-state h3 {
+      font-size: 18px;
+      margin-bottom: 10px;
+      color: var(--text);
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      margin-right: 10px;
+      border-radius: 50%;
+      border: 2px solid rgba(163, 90, 36, 0.14);
+      border-top-color: var(--brand);
+      animation: spin 0.8s linear infinite;
+      vertical-align: -4px;
+    }
+
+    .note-detail {
+      position: sticky;
+      top: 32px;
+      z-index: 5;
+      border-radius: 30px;
+      padding: 26px;
+      display: none;
+      min-height: 420px;
+    }
+
+    .note-detail.active {
+      display: block;
+    }
+
+    .detail-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 18px;
+      margin-bottom: 20px;
+    }
+
+    .detail-title {
+      margin-top: 16px;
+      font-size: 24px;
+      line-height: 1.28;
+      font-family: "Georgia", "Times New Roman", serif;
+    }
+
+    .detail-meta {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .content-section + .content-section {
+      margin-top: 16px;
+    }
+
+    .content-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .content-box {
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.66);
+      border: 1px solid var(--line);
+      max-height: 280px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.75;
+      font-size: 14px;
+    }
+
+    .content-box.empty {
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    .back-btn {
+      padding: 10px 14px;
+    }
+
+    .settings-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(36, 24, 13, 0.22);
+      backdrop-filter: blur(12px);
+    }
+
+    .settings-overlay.open {
+      display: flex;
+    }
+
+    .settings-modal {
+      width: min(560px, calc(100vw - 24px));
+      border-radius: 28px;
+      padding: 26px;
+    }
+
+    .settings-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 20px;
+    }
+
+    .settings-copy h2 {
+      font-size: 22px;
+      margin-bottom: 8px;
+    }
+
+    .settings-copy p {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .settings-form {
+      display: grid;
+      gap: 14px;
+    }
+
+    .settings-foot {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-top: 18px;
+    }
+
+    .hero-foot {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: center;
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(106, 79, 53, 0.1);
+    }
+
+    .credit-line {
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .credit-line a {
+      color: var(--brand-strong);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(125, 66, 23, 0.28);
+    }
+
+    .credit-line a:hover {
+      color: var(--brand);
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 1100px) {
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      .note-detail {
+        position: static;
+      }
+
+      .hero-top {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .hero-stats {
+        width: 100%;
+      }
+
+      .hero-foot {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .container {
+        width: min(100vw - 20px, 100%);
+        padding-top: 20px;
+      }
+
+      .hero,
+      .panel,
+      .note-detail {
+        padding: 18px;
+        border-radius: 24px;
+      }
+
+      .filters-grid,
+      .search-row {
+        grid-template-columns: 1fr;
+      }
+
+      .results-toolbar,
+      .panel-title {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .hero-stats {
+        grid-template-columns: 1fr;
+      }
+
+      .topbar-actions,
+      .settings-foot {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .note-item {
+        grid-template-columns: auto minmax(0, 1fr);
+      }
+
+      .note-open {
+        display: none;
+      }
+
+      .detail-actions {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="listView">
+      <section class="hero">
+        <div class="hero-top">
+          <div class="brand-line">
+            <div class="brand-mark">G</div>
+            <div class="brand-copy">
+              <span class="eyebrow">Get Notes</span>
+              <h1>Get 笔记下载器</h1>
+              <p>筛选、搜索、批量打包下载。</p>
+            </div>
+          </div>
+          <div class="topbar-actions">
+            <button id="refreshBtn" class="btn btn-ghost" onclick="window.__getNotesApp?.refreshNotes()">刷新数据</button>
+            <button id="openSettingsBtn" class="btn btn-secondary" onclick="window.__getNotesApp?.openSettings()">设置</button>
+          </div>
+        </div>
+        <div class="hero-foot">
+          <div class="hero-stats">
+            <div class="stat-card">
+              <div class="stat-label">已加载笔记</div>
+              <div class="stat-value" id="loadedCount">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">当前筛选结果</div>
+              <div class="stat-value" id="visibleCount">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">已选择</div>
+              <div class="stat-value" id="selectedCountHero">0</div>
+            </div>
+          </div>
+          <div class="credit-line">
+            created by <a href="https://github.com/Raymond-Hear" target="_blank" rel="noopener noreferrer">聆风Raymond</a>
+          </div>
+        </div>
+      </section>
+
+      <div class="shell">
+        <div class="workspace">
+          <section class="panel filters-panel">
+            <div class="panel-title">
+              <div>
+                <h2>搜索与筛选</h2>
+                <div class="panel-subtitle">先选知识库和标签，再筛关键词。</div>
+              </div>
+              <button id="clearFiltersBtn" class="btn btn-ghost">清空筛选</button>
+            </div>
+
+            <div id="statusBar" class="status-bar"></div>
+
+            <div class="search-row">
+              <input type="text" id="searchInput" placeholder="搜索标题、标签、知识库或已加载正文内容">
+              <button id="searchBtn" class="btn btn-primary">搜索</button>
+              <button id="clearSearchBtn" class="btn btn-secondary">清空搜索</button>
+            </div>
+
+            <div class="filters-grid">
+              <div id="topicDropdown" class="filter-dropdown">
+                <button id="topicDropdownBtn" class="btn dropdown-trigger" type="button">
+                  <span class="dropdown-label">
+                    <strong>知识库筛选</strong>
+                    <span id="topicDropdownLabel">加载笔记后可选择</span>
+                  </span>
+                  <span class="dropdown-arrow">⌄</span>
+                </button>
+                <div class="dropdown-panel">
+                  <input id="topicFilterSearch" class="filter-search" type="text" placeholder="筛选知识库名称">
+                  <div id="topicFilters" class="filter-options"></div>
+                </div>
+              </div>
+              <div id="tagDropdown" class="filter-dropdown">
+                <button id="tagDropdownBtn" class="btn dropdown-trigger" type="button">
+                  <span class="dropdown-label">
+                    <strong>标签筛选</strong>
+                    <span id="tagDropdownLabel">加载笔记后可选择</span>
+                  </span>
+                  <span class="dropdown-arrow">⌄</span>
+                </button>
+                <div class="dropdown-panel">
+                  <input id="tagFilterSearch" class="filter-search" type="text" placeholder="筛选标签名称">
+                  <div id="tagFilters" class="filter-options"></div>
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-top: 16px;">
+              <h3 style="font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px;">当前筛选</h3>
+              <div id="activeFilters" class="active-filters empty">还没有启用任何筛选条件</div>
+            </div>
+          </section>
+
+          <section class="panel results-panel">
+
+          <section class="panel">
+            <div class="results-toolbar">
+              <div>
+                <h2 style="font-size: 18px;">笔记列表</h2>
+                <div class="results-meta" id="resultsMeta">还没有加载笔记</div>
+              </div>
+              <div id="batchActions" class="batch-actions" style="display: none;">
+                <span class="batch-counter">已选 <span id="selectedCount">0</span> 条</span>
+                <button id="batchDownloadBtn" class="btn btn-primary" onclick="window.__getNotesApp?.batchDownloadOriginal()">下载原文</button>
+                <button id="batchDownloadAiBtn" class="btn btn-accent" onclick="window.__getNotesApp?.batchDownloadAi()">下载 AI 总结</button>
+              </div>
+            </div>
+
+            <div id="notesContainer" class="notes-container">
+              <div class="empty-state">
+                <h3>还没有加载笔记</h3>
+                <p>先保存配置，再点击“加载笔记”开始整理你的下载范围。</p>
+              </div>
+            </div>
+
+            <div id="loadMoreContainer" class="load-more" style="display: none;">
+              下拉到底部后会自动加载更多笔记
+            </div>
+          </section>
+
+        </div>
+
+        <aside id="detailView" class="note-detail">
+          <button id="backBtn" class="btn btn-ghost back-btn">返回列表</button>
+          <h2 class="detail-title" id="detailTitle">点击左侧任意笔记查看详情</h2>
+          <div class="detail-meta" id="detailMeta">这里会显示类型、日期、知识库和标签。</div>
+
+          <div class="detail-actions">
+            <button id="downloadOriginalBtn" class="btn btn-primary">下载原文</button>
+            <button id="downloadAiBtn" class="btn btn-accent">下载 AI 总结</button>
+          </div>
+
+          <div class="content-section">
+            <div class="content-label">原文内容</div>
+            <div id="originalContent" class="content-box empty">打开一条笔记后，这里会显示原文。</div>
+          </div>
+
+          <div class="content-section">
+            <div class="content-label">AI 总结</div>
+            <div id="aiContent" class="content-box empty">如果该笔记有 AI 总结，这里会显示对应内容。</div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <div id="settingsOverlay" class="settings-overlay">
+    <div class="settings-modal">
+      <div class="settings-head">
+        <div class="settings-copy">
+          <h2>接口设置</h2>
+          <p>首次使用时完成配置。以后只在这里修改，不再长期占据首页。</p>
+        </div>
+        <button id="closeSettingsBtn" class="btn btn-ghost" onclick="window.__getNotesApp?.closeSettings()">关闭</button>
+      </div>
+      <div class="settings-form">
+        <div class="field">
+          <label for="apiKeyInput">API Key</label>
+          <input type="password" id="apiKeyInput" placeholder="gk_live_xxx">
+        </div>
+        <div class="field">
+          <label for="clientIdInput">Client ID</label>
+          <input type="text" id="clientIdInput" placeholder="cli_xxx">
+        </div>
+      </div>
+      <div class="settings-foot">
+        <div class="panel-subtitle">保存后会自动加载知识库和笔记。</div>
+        <button id="saveConfigBtn" class="btn btn-primary" onclick="window.__getNotesApp?.saveConfig()">保存并开始</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
