@@ -141,11 +141,33 @@ function getNoteDate(note) {
   return note.created_at ? note.created_at.slice(0, 10) : '';
 }
 
+function getOriginalContent(note) {
+  const audioOriginal = note.audio?.original || '';
+  if (audioOriginal) return audioOriginal;
+
+  const webOriginal = note.web_page?.content || '';
+  if (webOriginal) return webOriginal;
+
+  return note.content || '';
+}
+
+function getAiContent(note) {
+  const originalContent = getOriginalContent(note);
+  const candidates = [
+    note.web_page?.excerpt || '',
+    note.content || ''
+  ];
+
+  return candidates.find(candidate => candidate && candidate !== originalContent) || '';
+}
+
 function getSearchText(note) {
   return [
     note.title || '',
     note.content || '',
     note.web_page?.content || '',
+    note.audio?.original || '',
+    note.web_page?.excerpt || '',
     note.note_type || '',
     getTopics(note).join(' '),
     getTags(note).join(' ')
@@ -211,6 +233,48 @@ function mergeNotes(existingNotes, incomingNotes) {
   }
 
   return { merged, addedCount };
+}
+
+function enhanceFirstRunEmptyState() {
+  if (hasSavedConfig) return;
+  const emptyActionBtn = document.getElementById('emptyStateSettingsBtn');
+  if (!emptyActionBtn) return;
+
+  emptyActionBtn.textContent = '打开设置并开始';
+
+  const helper = document.createElement('div');
+  helper.style.marginTop = '16px';
+  helper.style.color = 'var(--muted)';
+  helper.style.fontSize = '13px';
+  helper.style.lineHeight = '1.8';
+  helper.textContent = '第一次使用时，先去 Get 笔记开放平台创建应用，再把 API Key 和 Client ID 填进设置里。';
+
+  emptyActionBtn.insertAdjacentElement('beforebegin', helper);
+}
+
+function enhanceSettingsOnboarding() {
+  if (openSettingsBtn) {
+    openSettingsBtn.textContent = hasSavedConfig ? '设置' : '开始使用';
+  }
+
+  const settingsCopy = document.querySelector('.settings-copy p');
+  if (settingsCopy) {
+    settingsCopy.textContent = '第一次使用时，把你自己的 API Key 和 Client ID 填在这里。保存后，页面会自动开始加载你的 Get 笔记内容。';
+  }
+
+  const settingsFoot = document.querySelector('.settings-foot .panel-subtitle');
+  if (settingsFoot) {
+    settingsFoot.textContent = '保存后会自动加载知识库和笔记，不需要再手动点击加载。';
+  }
+
+  const emptyTitle = notesContainer?.querySelector('.empty-state h3');
+  const emptyHint = notesContainer?.querySelector('.empty-state p');
+  if (!hasSavedConfig && emptyTitle && emptyHint) {
+    emptyTitle.textContent = '先完成接口设置';
+    emptyHint.textContent = '第一次进入时，先填写你自己的 API Key 和 Client ID。';
+  }
+
+  enhanceFirstRunEmptyState();
 }
 
 function toggleSelection(noteId, checked) {
@@ -451,7 +515,7 @@ function renderDetail(note) {
   document.getElementById('detailMeta').textContent = meta;
 
   const originalEl = document.getElementById('originalContent');
-  const originalContent = note.web_page?.content || '';
+  const originalContent = getOriginalContent(note);
   if (originalContent) {
     originalEl.textContent = originalContent;
     originalEl.classList.remove('empty');
@@ -461,8 +525,8 @@ function renderDetail(note) {
   }
 
   const aiEl = document.getElementById('aiContent');
-  const aiContent = note.content || '';
-  if (aiContent && aiContent !== originalContent) {
+  const aiContent = getAiContent(note);
+  if (aiContent) {
     aiEl.textContent = aiContent;
     aiEl.classList.remove('empty');
   } else {
@@ -762,7 +826,7 @@ async function downloadCurrentNote(type) {
     const { note } = await getCachedOrFetchDetail(currentNoteId);
     const title = sanitizeFilename(note.title || '笔记');
     const prefix = type === 'original' ? '原文' : 'AI总结';
-    const content = type === 'original' ? (note.web_page?.content || '') : (note.content || '');
+    const content = type === 'original' ? getOriginalContent(note) : getAiContent(note);
     const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
     downloadBlob(blob, `${title}_${prefix}.md`);
     showStatus(`已下载${type === 'original' ? '原文' : 'AI 总结'}：${note.title || '未标题笔记'}`, 'success');
@@ -788,7 +852,7 @@ async function batchDownload(type) {
       showStatus(`正在打包 ${index + 1}/${noteIds.length} 条${prefix}...`, 'info');
 
       const { note, fromCache } = await getCachedOrFetchDetail(noteId);
-      const content = type === 'original' ? (note.web_page?.content || '') : (note.content || '');
+      const content = type === 'original' ? getOriginalContent(note) : getAiContent(note);
       files.push({
         name: `${sanitizeFilename(note.title || '笔记')}_${prefix}.md`,
         content: textToUint8Array(content),
@@ -1004,6 +1068,18 @@ window.__getNotesApp = {
   batchDownloadAi: () => batchDownload('ai')
 };
 
+const onboardingObserver = new MutationObserver(() => {
+  enhanceSettingsOnboarding();
+});
+
+if (notesContainer) {
+  onboardingObserver.observe(notesContainer, { childList: true, subtree: true });
+}
+
+if (settingsOverlay) {
+  onboardingObserver.observe(settingsOverlay, { childList: true, subtree: true, attributes: true });
+}
+
 (async () => {
   fillDetailPlaceholder();
   updateStats();
@@ -1011,6 +1087,7 @@ window.__getNotesApp = {
   updateResultsMeta();
   updateDropdownLabels();
   updateSettingsButtonLabel();
+  enhanceSettingsOnboarding();
 
   const configured = await checkConfig();
   if (configured) {
@@ -1022,3 +1099,10 @@ window.__getNotesApp = {
     openSettings();
   }
 })();
+
+setTimeout(() => {
+  if (!hasSavedConfig) {
+    showStatus('第一次使用时，先完成接口设置。保存后系统会自动开始加载你的笔记。', 'info');
+    enhanceSettingsOnboarding();
+  }
+}, 0);

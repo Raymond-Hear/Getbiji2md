@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/icon16.png">
+  <link rel="icon" type="image/png" sizes="48x48" href="icons/icon48.png">
+  <link rel="icon" type="image/png" sizes="128x128" href="icons/icon128.png">
+  <link rel="apple-touch-icon" href="icons/icon512.png">
   <title>Get 笔记下载器</title>
   <style>
     :root {
@@ -138,11 +142,9 @@
       width: 56px;
       height: 56px;
       border-radius: 18px;
-      display: grid;
-      place-items: center;
-      background: linear-gradient(135deg, rgba(163, 90, 36, 0.18), rgba(36, 106, 101, 0.18));
-      border: 1px solid rgba(255, 255, 255, 0.6);
-      font-size: 28px;
+      display: block;
+      object-fit: cover;
+      box-shadow: 0 12px 28px rgba(53, 33, 16, 0.14);
     }
 
     .brand-copy p {
@@ -787,6 +789,56 @@
       gap: 14px;
     }
 
+    .settings-guide {
+      margin-bottom: 18px;
+      padding: 16px 18px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.64);
+      border: 1px solid var(--line);
+    }
+
+    .settings-guide h3 {
+      font-size: 15px;
+      margin-bottom: 10px;
+      color: var(--text);
+    }
+
+    .settings-guide p,
+    .settings-guide li {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .settings-guide ol {
+      padding-left: 18px;
+      margin: 10px 0 0;
+    }
+
+    .settings-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .settings-links a {
+      color: var(--brand-strong);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(125, 66, 23, 0.22);
+    }
+
+    .settings-links a:hover {
+      color: var(--brand);
+    }
+
+    .field-hint {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
     .settings-foot {
       display: flex;
       justify-content: space-between;
@@ -905,7 +957,7 @@
       <section class="hero">
         <div class="hero-top">
           <div class="brand-line">
-            <div class="brand-mark">G</div>
+            <img class="brand-mark" src="icons/icon128.png" alt="Get 笔记 Markdown 下载工具图标">
             <div class="brand-copy">
               <span class="eyebrow">Get Notes</span>
               <h1>Get 笔记下载器</h1>
@@ -1050,22 +1102,38 @@
       <div class="settings-head">
         <div class="settings-copy">
           <h2>接口设置</h2>
-          <p>首次使用时完成配置。以后只在这里修改，不再长期占据首页。</p>
+          <p>第一次使用时，把你自己的 API Key 和 Client ID 填在这里。保存后，页面会自动开始加载你的 Get 笔记内容。</p>
         </div>
         <button id="closeSettingsBtn" class="btn btn-ghost" onclick="window.__getNotesApp?.closeSettings()">关闭</button>
+      </div>
+      <div class="settings-guide">
+        <h3>第一次使用怎么开始</h3>
+        <p>这个工具不会自己生成接口信息。你需要先在 Get 笔记开放平台创建应用，然后把对应的 API Key 和 Client ID 填到这里。</p>
+        <ol>
+          <li>打开 Get 笔记开放平台并登录账号</li>
+          <li>创建一个应用，获取 API Key 和 Client ID</li>
+          <li>回到这里填写并保存，系统会自动加载你的笔记</li>
+        </ol>
+        <div class="settings-links">
+          <a href="https://www.biji.com/openapi" target="_blank" rel="noopener noreferrer">打开开放平台</a>
+          <a href="https://doc.biji.com/docs/WOxgwObNNiyMHWk1dl0cJqSxnEd/" target="_blank" rel="noopener noreferrer">查看 API 文档</a>
+          <a href="https://doc.biji.com/docs/AGhfwzioqiHbv4kbObjcuStnnBg" target="_blank" rel="noopener noreferrer">查看会员与开放平台说明</a>
+        </div>
       </div>
       <div class="settings-form">
         <div class="field">
           <label for="apiKeyInput">API Key</label>
           <input type="password" id="apiKeyInput" placeholder="gk_live_xxx">
+          <div class="field-hint">这是访问 Get 笔记接口的密钥，请使用你自己的真实 API Key。</div>
         </div>
         <div class="field">
           <label for="clientIdInput">Client ID</label>
           <input type="text" id="clientIdInput" placeholder="cli_xxx">
+          <div class="field-hint">这是你在开放平台创建应用后拿到的 Client ID。</div>
         </div>
       </div>
       <div class="settings-foot">
-        <div class="panel-subtitle">保存后会自动加载知识库和笔记。</div>
+        <div class="panel-subtitle">保存后会自动加载知识库和笔记，不需要再手动点“加载”。</div>
         <button id="saveConfigBtn" class="btn btn-primary" onclick="window.__getNotesApp?.saveConfig()">保存并开始</button>
       </div>
     </div>

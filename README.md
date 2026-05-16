@@ -43,6 +43,12 @@
 - [Get 笔记知识库 OpenAPI 快速上手](https://doc.biji.com/docs/WLUjwn3noiPMBWkFOPkcTqcnn6e)
 - [Get 笔记 AI 技能和开放平台](https://doc.biji.com/docs/AGhfwzioqiHbv4kbObjcuStnnBg)
 
+如果你现在还不是会员，也可以先试用一下：
+
+- [通过这个邀请链接领取 Get 笔记新人会员 3 天体验](https://www.biji.com/i/0D8SZ0N4E3?os=ANDROID&referral=0D8SZ0N4E3&trace=eyJzX3VzZXJfaWQiOjEyMDIwOCwic19lbnRpdHlfdHlwZSI6Imludml0ZV9yZWZlcnJhbCIsInNfZW50aXR5X2lkIjoiNjhlMDA0OWY4ZTM0ZmNiNGQ2NGQ1MWM1In0%3D&uid=XyZzEwqy)
+
+如果你只是想先体验一下这个工具，或者先看看自己的账号能不能正常走通开放平台流程，这会是一个更轻的开始方式。
+
 ## API Key 和 Client ID 怎么拿
 
 如果你之前没接触过开放平台，按下面这个顺序来就够了：
