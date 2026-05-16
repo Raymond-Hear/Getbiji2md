@@ -59,6 +59,11 @@ const activeTopicFilters = new Set();
 const activeTagFilters = new Set();
 const detailCache = new Map();
 
+const RATE_LIMIT_STATUS = 429;
+const DETAIL_FETCH_DELAY_MS = 450;
+const DETAIL_FETCH_RETRY_DELAY_MS = 1400;
+const DETAIL_FETCH_MAX_RETRIES = 3;
+
 detailView.classList.add('active');
 
 function openSettings() {
@@ -515,6 +520,10 @@ function downloadBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 function textToUint8Array(text) {
   return new TextEncoder().encode(text);
 }
@@ -670,6 +679,41 @@ async function getNoteDetail(noteId) {
   return resp.data.note;
 }
 
+async function getNoteDetailWithRetry(noteId) {
+  let attempt = 0;
+
+  while (attempt <= DETAIL_FETCH_MAX_RETRIES) {
+    try {
+      return await getNoteDetail(noteId);
+    } catch (error) {
+      attempt += 1;
+      const message = error?.message || '';
+      const isRateLimited = message.includes(`(${RATE_LIMIT_STATUS})`);
+
+      if (!isRateLimited || attempt > DETAIL_FETCH_MAX_RETRIES) {
+        throw error;
+      }
+
+      const backoff = DETAIL_FETCH_RETRY_DELAY_MS * attempt;
+      showStatus(`请求过快，正在等待后重试 (${attempt}/${DETAIL_FETCH_MAX_RETRIES})...`, 'info');
+      await wait(backoff);
+    }
+  }
+
+  throw new Error('获取笔记详情失败');
+}
+
+async function getCachedOrFetchDetail(noteId) {
+  const cached = detailCache.get(noteId);
+  if (cached) {
+    return { note: cached, fromCache: true };
+  }
+
+  const note = await getNoteDetailWithRetry(noteId);
+  detailCache.set(noteId, note);
+  return { note, fromCache: false };
+}
+
 async function loadKnowledgeBases() {
   if (!hasSavedConfig) {
     knowledgeBases = [];
@@ -696,8 +740,7 @@ async function openNoteDetail(noteId) {
   document.getElementById('aiContent').textContent = '加载中...';
 
   try {
-    const note = detailCache.get(noteId) || await getNoteDetail(noteId);
-    detailCache.set(noteId, note);
+    const { note } = await getCachedOrFetchDetail(noteId);
     renderDetail(note);
   } catch (error) {
     showStatus(`加载详情失败: ${error.message}`);
@@ -716,8 +759,7 @@ async function downloadCurrentNote(type) {
   }
 
   try {
-    const note = detailCache.get(currentNoteId) || await getNoteDetail(currentNoteId);
-    detailCache.set(currentNoteId, note);
+    const { note } = await getCachedOrFetchDetail(currentNoteId);
     const title = sanitizeFilename(note.title || '笔记');
     const prefix = type === 'original' ? '原文' : 'AI总结';
     const content = type === 'original' ? (note.web_page?.content || '') : (note.content || '');
@@ -737,18 +779,27 @@ async function batchDownload(type) {
 
   try {
     const prefix = type === 'original' ? '原文' : 'AI总结';
-    showStatus(`正在打包 ${selectedNotes.size} 条${prefix}...`, 'info');
+    showStatus(`正在准备打包 ${selectedNotes.size} 条${prefix}...`, 'info');
     const files = [];
+    const noteIds = Array.from(selectedNotes);
 
-    for (const noteId of selectedNotes) {
-      const note = detailCache.get(noteId) || await getNoteDetail(noteId);
-      detailCache.set(noteId, note);
+    for (let index = 0; index < noteIds.length; index++) {
+      const noteId = noteIds[index];
+      showStatus(`正在打包 ${index + 1}/${noteIds.length} 条${prefix}...`, 'info');
+
+      const { note, fromCache } = await getCachedOrFetchDetail(noteId);
       const content = type === 'original' ? (note.web_page?.content || '') : (note.content || '');
       files.push({
         name: `${sanitizeFilename(note.title || '笔记')}_${prefix}.md`,
         content: textToUint8Array(content),
         date: new Date()
       });
+
+      if (index < noteIds.length - 1 && !fromCache) {
+        await wait(DETAIL_FETCH_DELAY_MS);
+      } else if (index < noteIds.length - 1) {
+        await wait(120);
+      }
     }
 
     const zipBlob = buildZip(files);
