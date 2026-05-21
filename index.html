@@ -102,9 +102,12 @@
       height: 220px;
       border-radius: 50%;
       background: radial-gradient(circle, rgba(163, 90, 36, 0.14), transparent 68%);
+      pointer-events: none;
     }
 
     .hero-top {
+      position: relative;
+      z-index: 2;
       display: flex;
       justify-content: space-between;
       gap: 20px;
@@ -310,6 +313,12 @@
       background: linear-gradient(135deg, #296d67, #1d5a55);
       color: #f2fffc;
       box-shadow: 0 10px 18px rgba(29, 90, 85, 0.16);
+    }
+
+    .btn-danger {
+      background: rgba(153, 52, 32, 0.1);
+      color: #8a2e1f;
+      border-color: rgba(153, 52, 32, 0.22);
     }
 
     .status-bar {
@@ -763,6 +772,8 @@
       width: min(560px, calc(100vw - 24px));
       border-radius: 28px;
       padding: 26px;
+      max-height: calc(100vh - 32px);
+      overflow-y: auto;
     }
 
     .settings-head {
@@ -790,46 +801,68 @@
     }
 
     .settings-guide {
-      margin-bottom: 18px;
-      padding: 16px 18px;
-      border-radius: 20px;
-      background: rgba(255, 255, 255, 0.64);
+      margin-bottom: 14px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.58);
       border: 1px solid var(--line);
     }
 
+    .privacy-note {
+      margin-bottom: 14px;
+      color: #245c57;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
     .settings-guide h3 {
-      font-size: 15px;
-      margin-bottom: 10px;
+      font-size: 14px;
       color: var(--text);
+      margin-bottom: 10px;
     }
 
     .settings-guide p,
     .settings-guide li {
       color: var(--muted);
-      font-size: 14px;
-      line-height: 1.7;
+      font-size: 13px;
+      line-height: 1.65;
     }
 
     .settings-guide ol {
       padding-left: 18px;
-      margin: 10px 0 0;
+      margin: 8px 0 0;
     }
 
-    .settings-links {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 12px;
-    }
-
-    .settings-links a {
+    .settings-guide a {
       color: var(--brand-strong);
       text-decoration: none;
       border-bottom: 1px solid rgba(125, 66, 23, 0.22);
     }
 
-    .settings-links a:hover {
-      color: var(--brand);
+    .guide-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--brand-soft);
+      border: 1px solid rgba(125, 66, 23, 0.18);
+      font-weight: 700;
+    }
+
+    .link-badge {
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.72);
+      color: var(--brand-strong);
+      font-size: 11px;
+      line-height: 1.2;
+    }
+
+    .member-note {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(106, 79, 53, 0.1);
     }
 
     .field-hint {
@@ -845,6 +878,17 @@
       gap: 12px;
       align-items: center;
       margin-top: 18px;
+    }
+
+    .settings-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .settings-actions .is-hidden {
+      display: none;
     }
 
     .hero-foot {
@@ -937,6 +981,10 @@
         align-items: stretch;
       }
 
+      .settings-actions {
+        justify-content: stretch;
+      }
+
       .note-item {
         grid-template-columns: auto minmax(0, 1fr);
       }
@@ -961,7 +1009,7 @@
             <div class="brand-copy">
               <span class="eyebrow">Get Notes</span>
               <h1>Get 笔记下载器</h1>
-              <p>筛选、搜索、批量打包下载。</p>
+              <p>无需登录、无数据库，API Key 只保存在当前浏览器本地。</p>
             </div>
           </div>
           <div class="topbar-actions">
@@ -1101,24 +1149,23 @@
     <div class="settings-modal">
       <div class="settings-head">
         <div class="settings-copy">
-          <h2>接口设置</h2>
-          <p>第一次使用时，把你自己的 API Key 和 Client ID 填在这里。保存后，页面会自动开始加载你的 Get 笔记内容。</p>
+          <h2>欢迎使用 Get 笔记下载器</h2>
+          <p>填入你自己的开放平台信息，保存后就可以开始筛选和下载笔记。</p>
         </div>
         <button id="closeSettingsBtn" class="btn btn-ghost" onclick="window.__getNotesApp?.closeSettings()">关闭</button>
       </div>
       <div class="settings-guide">
-        <h3>第一次使用怎么开始</h3>
-        <p>这个工具不会自己生成接口信息。你需要先在 Get 笔记开放平台创建应用，然后把对应的 API Key 和 Client ID 填到这里。</p>
+        <h3>获取 Client ID 和 API Key</h3>
         <ol>
-          <li>打开 Get 笔记开放平台并登录账号</li>
-          <li>创建一个应用，获取 API Key 和 Client ID</li>
-          <li>回到这里填写并保存，系统会自动加载你的笔记</li>
+          <li>打开 <a class="guide-link" href="https://www.biji.com/openapi?tab=clients" target="_blank" rel="noopener noreferrer">Get 笔记开放平台 <span class="link-badge">点击打开</span></a> 并登录账号。</li>
+          <li>找到「Get 笔记 Skill & Cli」官方默认授权应用。</li>
+          <li>点击「生成 Key」，保存生成的 API Key 和 Client ID。</li>
+          <li>回到这里填写 API Key 和 Client ID，点击「保存并开始」。</li>
         </ol>
-        <div class="settings-links">
-          <a href="https://www.biji.com/openapi" target="_blank" rel="noopener noreferrer">打开开放平台</a>
-          <a href="https://doc.biji.com/docs/WOxgwObNNiyMHWk1dl0cJqSxnEd/" target="_blank" rel="noopener noreferrer">查看 API 文档</a>
-          <a href="https://doc.biji.com/docs/AGhfwzioqiHbv4kbObjcuStnnBg" target="_blank" rel="noopener noreferrer">查看会员与开放平台说明</a>
-        </div>
+        <p class="member-note">获取 API Key 是 Get 笔记会员功能。如想体验该功能，可先 <a href="https://www.biji.com/i/0D8SZ0N4E3?os=ANDROID&referral=0D8SZ0N4E3&trace=eyJzX3VzZXJfaWQiOjEyMDIwOCwic19lbnRpdHlfdHlwZSI6Imludml0ZV9yZWZlcnJhbCIsInNfZW50aXR5X2lkIjoiNjhlMDA0OWY4ZTM0ZmNiNGQ2NGQ1MWM1In0%3D&uid=XyZzEwqy" target="_blank" rel="noopener noreferrer">免费领取 3 天会员体验</a>。</p>
+      </div>
+      <div class="privacy-note">
+        无需注册登录，也没有数据库。API Key 和 Client ID 只保存在当前浏览器本地。
       </div>
       <div class="settings-form">
         <div class="field">
@@ -1134,7 +1181,10 @@
       </div>
       <div class="settings-foot">
         <div class="panel-subtitle">保存后会自动加载知识库和笔记，不需要再手动点“加载”。</div>
-        <button id="saveConfigBtn" class="btn btn-primary" onclick="window.__getNotesApp?.saveConfig()">保存并开始</button>
+        <div class="settings-actions">
+          <button id="clearConfigBtn" class="btn btn-danger is-hidden" onclick="window.__getNotesApp?.clearConfig()">清除本地配置</button>
+          <button id="saveConfigBtn" class="btn btn-primary" onclick="window.__getNotesApp?.saveConfig()">保存并开始</button>
+        </div>
       </div>
     </div>
   </div>

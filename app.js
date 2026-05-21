@@ -17,6 +17,7 @@ const batchDownloadAiBtn = document.getElementById('batchDownloadAiBtn');
 const apiKeyInput = document.getElementById('apiKeyInput');
 const clientIdInput = document.getElementById('clientIdInput');
 const saveConfigBtn = document.getElementById('saveConfigBtn');
+const clearConfigBtn = document.getElementById('clearConfigBtn');
 const refreshBtn = document.getElementById('refreshBtn');
 const statusBar = document.getElementById('statusBar');
 const backBtn = document.getElementById('backBtn');
@@ -53,6 +54,8 @@ let isLoadingNotes = false;
 let hasMoreNotes = false;
 let topicFilterKeyword = '';
 let tagFilterKeyword = '';
+let noteFeedMode = 'all';
+let knowledgeBasePaging = new Map();
 
 const selectedNotes = new Set();
 const activeTopicFilters = new Set();
@@ -63,6 +66,10 @@ const RATE_LIMIT_STATUS = 429;
 const DETAIL_FETCH_DELAY_MS = 450;
 const DETAIL_FETCH_RETRY_DELAY_MS = 1400;
 const DETAIL_FETCH_MAX_RETRIES = 3;
+const KNOWLEDGE_NOTES_FIRST_PAGE = 1;
+const LIST_FETCH_DELAY_MS = 700;
+const LIST_FETCH_RETRY_DELAY_MS = 1800;
+const LIST_FETCH_MAX_RETRIES = 4;
 
 detailView.classList.add('active');
 
@@ -118,6 +125,12 @@ function saveConfigLocal(apiKey, clientId) {
   hasSavedConfig = true;
 }
 
+function clearConfigLocal() {
+  localStorage.removeItem(STORAGE_KEYS.apiKey);
+  localStorage.removeItem(STORAGE_KEYS.clientId);
+  hasSavedConfig = false;
+}
+
 function getNoteId(note) {
   return String(note.note_id || note.id || '');
 }
@@ -129,7 +142,8 @@ function getTopics(note) {
 function getTopicEntries(note) {
   return (note.topics || []).map(topic => ({
     id: String(topic.topic_id || topic.id || topic.name || ''),
-    name: topic.name || ''
+    name: topic.name || '',
+    source: 'note'
   })).filter(topic => topic.id && topic.name);
 }
 
@@ -183,8 +197,101 @@ function buildUniqueValues(notes, getter) {
 function buildKnowledgeBaseOptions() {
   return knowledgeBases
     .filter(item => item && item.id && item.name)
-    .map(item => ({ id: String(item.id), name: item.name }))
+    .map(item => ({
+      id: String(item.id),
+      name: item.name,
+      label: formatKnowledgeBaseLabel(item),
+      source: item.source || 'owned'
+    }))
     .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'));
+}
+
+function formatKnowledgeBaseLabel(item) {
+  const source = item?.source || 'owned';
+  if (source === 'owned') return `${item.name}（我的知识库）`;
+  if (source === 'subscribed') return `${item.name}（订阅知识库）`;
+  if (source === 'note') return `${item.name}（笔记归属）`;
+  return item.name;
+}
+
+function normalizeKnowledgeBaseEntry(topic) {
+  if (!topic || typeof topic !== 'object') return null;
+
+  const id = String(
+    topic.topic_id
+    || topic.topicId
+    || topic.knowledge_id
+    || topic.knowledgeId
+    || topic.id
+    || topic.value
+    || topic.name
+    || ''
+  );
+  const name = String(
+    topic.name
+    || topic.topic_name
+    || topic.topicName
+    || topic.knowledge_name
+    || topic.knowledgeName
+    || topic.label
+    || ''
+  ).trim();
+
+  if (!id || !name) {
+    return null;
+  }
+
+  return {
+    id,
+    name,
+    source: topic.__source || topic.source || 'owned'
+  };
+}
+
+function dedupeKnowledgeBases(items) {
+  const byId = new Map();
+
+  items
+    .map(normalizeKnowledgeBaseEntry)
+    .filter(Boolean)
+    .forEach(item => {
+      if (!byId.has(item.id) || byId.get(item.id).source === 'note') {
+        byId.set(item.id, item);
+      }
+    });
+
+  return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'));
+}
+
+function extractKnowledgeBaseList(resp) {
+  const candidates = [
+    resp?.data?.topics,
+    resp?.data?.topic_list,
+    resp?.data?.topicList,
+    resp?.data?.knowledge_list,
+    resp?.data?.knowledgeList,
+    resp?.data?.list,
+    resp?.data?.items,
+    resp?.data,
+    resp?.topics,
+    resp?.list,
+    resp?.items
+  ];
+
+  const list = candidates.find(Array.isArray);
+  return Array.isArray(list) ? dedupeKnowledgeBases(list) : [];
+}
+
+function syncKnowledgeBasesFromNotes() {
+  const fromNotes = dedupeKnowledgeBases(allNotes.flatMap(note => getTopicEntries(note)));
+  if (fromNotes.length === 0) {
+    return;
+  }
+
+  const merged = dedupeKnowledgeBases([...knowledgeBases, ...fromNotes]);
+  if (merged.length !== knowledgeBases.length) {
+    knowledgeBases = merged;
+  }
 }
 
 function updateBatchActions() {
@@ -215,6 +322,20 @@ function updateSettingsButtonLabel() {
   openSettingsBtn.textContent = hasSavedConfig ? '设置' : '先去设置';
 }
 
+function updateClearConfigVisibility() {
+  clearConfigBtn?.classList.toggle('is-hidden', !hasSavedConfig);
+}
+
+function updateDropdownLabels() {
+  topicDropdownLabel.textContent = activeTopicFilters.size > 0
+    ? `已选 ${activeTopicFilters.size} 个知识库`
+    : (knowledgeBases.length > 0 ? '优先显示我的知识库，也补充订阅和笔记归属' : '配置后自动加载知识库');
+
+  tagDropdownLabel.textContent = activeTagFilters.size > 0
+    ? `已选 ${activeTagFilters.size} 个标签`
+    : (allNotes.length > 0 ? '从当前结果中选择标签' : '加载结果后可选');
+}
+
 function mergeNotes(existingNotes, incomingNotes) {
   const merged = [...existingNotes];
   const seenIds = new Set(existingNotes.map(getNoteId).filter(Boolean));
@@ -241,8 +362,10 @@ function enhanceFirstRunEmptyState() {
   if (!emptyActionBtn) return;
 
   emptyActionBtn.textContent = '打开设置并开始';
+  if (notesContainer?.querySelector('.first-run-helper')) return;
 
   const helper = document.createElement('div');
+  helper.className = 'first-run-helper';
   helper.style.marginTop = '16px';
   helper.style.color = 'var(--muted)';
   helper.style.fontSize = '13px';
@@ -256,10 +379,11 @@ function enhanceSettingsOnboarding() {
   if (openSettingsBtn) {
     openSettingsBtn.textContent = hasSavedConfig ? '设置' : '开始使用';
   }
+  updateClearConfigVisibility();
 
   const settingsCopy = document.querySelector('.settings-copy p');
   if (settingsCopy) {
-    settingsCopy.textContent = '第一次使用时，把你自己的 API Key 和 Client ID 填在这里。保存后，页面会自动开始加载你的 Get 笔记内容。';
+    settingsCopy.textContent = '填入你自己的开放平台信息，保存后就可以开始筛选和下载笔记。';
   }
 
   const settingsFoot = document.querySelector('.settings-foot .panel-subtitle');
@@ -290,7 +414,7 @@ function toggleSelection(noteId, checked) {
 
 function renderFilterSection(container, items, activeSet, type, searchTerm = '') {
   const visibleItems = items.filter(item => {
-    const label = typeof item === 'string' ? item : item.name;
+    const label = typeof item === 'string' ? item : (item.label || item.name);
     return label.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
@@ -306,7 +430,7 @@ function renderFilterSection(container, items, activeSet, type, searchTerm = '')
 
   container.innerHTML = visibleItems.map(item => {
     const value = typeof item === 'string' ? item : item.id;
-    const label = typeof item === 'string' ? item : item.name;
+    const label = typeof item === 'string' ? item : (item.label || item.name);
     return `
       <label class="filter-option">
         <input
@@ -322,7 +446,7 @@ function renderFilterSection(container, items, activeSet, type, searchTerm = '')
   }).join('');
 
   container.querySelectorAll('.filter-option-check').forEach(checkbox => {
-    checkbox.addEventListener('change', () => {
+    checkbox.addEventListener('change', async () => {
       const value = checkbox.dataset.filterValue;
       const set = type === 'topic' ? activeTopicFilters : activeTagFilters;
       if (set.has(value)) {
@@ -330,7 +454,12 @@ function renderFilterSection(container, items, activeSet, type, searchTerm = '')
       } else {
         set.add(value);
       }
-      applyFilters();
+
+      if (type === 'topic') {
+        await refreshNotesForCurrentFilters();
+      } else {
+        applyFilters();
+      }
     });
   });
 }
@@ -453,18 +582,21 @@ function renderNotes() {
   });
 
   notesContainer.querySelectorAll('.note-filter-trigger').forEach(button => {
-    button.addEventListener('click', event => {
+    button.addEventListener('click', async event => {
       event.stopPropagation();
       const type = button.dataset.filterType;
       if (type === 'tag') {
         activeTagFilters.add(button.dataset.filterValue);
+        applyFilters();
       } else {
         const topic = knowledgeBases.find(item => item.name === button.dataset.filterLabel);
         if (topic) {
           activeTopicFilters.add(String(topic.id));
+          await refreshNotesForCurrentFilters();
+        } else {
+          applyFilters();
         }
       }
-      applyFilters();
     });
   });
 
@@ -478,7 +610,233 @@ function applyFilters() {
   renderNotes();
 }
 
+function resetKnowledgeBasePaging() {
+  knowledgeBasePaging = new Map();
+}
+
+function updateLoadMoreVisibility(visible = false) {
+  loadMoreContainer.style.display = visible ? 'block' : 'none';
+  if (visible) {
+    renderLoadMoreControls();
+  } else {
+    loadMoreContainer.innerHTML = '';
+  }
+}
+
+function renderLoadMoreControls() {
+  const scopeLabel = noteFeedMode === 'knowledge' ? '当前知识库结果' : '当前笔记结果';
+  loadMoreContainer.innerHTML = `
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+      <span>已加载部分 ${scopeLabel}，可继续补齐。</span>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button id="continueLoadBtn" class="btn btn-secondary" type="button">继续加载</button>
+        <button id="loadAllBtn" class="btn btn-primary" type="button">加载全部</button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('continueLoadBtn')?.addEventListener('click', event => {
+    event.preventDefault();
+    continueLoadingCurrentFeed();
+  });
+
+  document.getElementById('loadAllBtn')?.addEventListener('click', event => {
+    event.preventDefault();
+    loadAllRemainingForCurrentFeed();
+  });
+}
+
+function resetLoadedNotesState() {
+  allNotes = [];
+  filteredNotes = [];
+  selectedNotes.clear();
+  detailCache.clear();
+  currentNoteId = null;
+  fillDetailPlaceholder();
+}
+
+async function refreshNotesForCurrentFilters() {
+  if (!hasSavedConfig) {
+    return;
+  }
+
+  if (activeTopicFilters.size === 0) {
+    noteFeedMode = 'all';
+    resetKnowledgeBasePaging();
+    lastCursor = '0';
+    hasMoreNotes = false;
+    await loadNotes('0', false);
+    return;
+  }
+
+  await loadKnowledgeBaseNotes(false);
+}
+
+async function continueLoadingCurrentFeed() {
+  if (isLoadingNotes || !hasMoreNotes) {
+    return;
+  }
+
+  if (noteFeedMode === 'knowledge') {
+    await loadKnowledgeBaseNotes(true);
+  } else {
+    await loadNotes(lastCursor, true);
+  }
+}
+
+async function loadAllRemainingForCurrentFeed() {
+  if (isLoadingNotes || !hasMoreNotes) {
+    return;
+  }
+
+  while (hasMoreNotes && !isLoadingNotes) {
+    await continueLoadingCurrentFeed();
+    if (hasMoreNotes) {
+      await wait(LIST_FETCH_DELAY_MS);
+    }
+  }
+}
+
+async function loadAllNotes() {
+  if (isLoadingNotes || !hasSavedConfig) {
+    return;
+  }
+
+  isLoadingNotes = true;
+  noteFeedMode = 'all';
+  updateLoadMoreVisibility(false);
+  showLoading('正在自动加载全部笔记...');
+
+  try {
+    resetLoadedNotesState();
+
+    let currentCursor = '0';
+    let round = 0;
+    let workingNotes = [];
+    const seenCursors = new Set();
+
+    while (true) {
+      round += 1;
+      showStatus(`正在自动加载全部笔记，第 ${round} 轮...`, 'info');
+
+      const result = await getNoteList(currentCursor, 20);
+      const mergeResult = mergeNotes(workingNotes, result.notes);
+      workingNotes = mergeResult.merged;
+      lastCursor = result.nextCursor;
+
+      if (!result.hasMore || !result.nextCursor || seenCursors.has(result.nextCursor)) {
+        break;
+      }
+
+      seenCursors.add(result.nextCursor);
+      currentCursor = result.nextCursor;
+      await wait(LIST_FETCH_DELAY_MS);
+    }
+
+    allNotes = workingNotes;
+    syncKnowledgeBasesFromNotes();
+    hasMoreNotes = false;
+    updateLoadMoreVisibility(false);
+    showStatus(`已自动加载 ${allNotes.length} 条笔记`, 'success');
+    applyFilters();
+  } catch (error) {
+    showStatus(`加载失败: ${error.message}`);
+    showEmpty('加载失败', '如果这是独立站点模式，请确认接口允许网页直接访问；若接口没有开放 CORS，还需要后端代理。');
+  } finally {
+    isLoadingNotes = false;
+  }
+}
+
+async function loadKnowledgeBaseNotes(append = false) {
+  if (isLoadingNotes || !hasSavedConfig || activeTopicFilters.size === 0) {
+    return;
+  }
+
+  isLoadingNotes = true;
+  noteFeedMode = 'knowledge';
+  updateLoadMoreVisibility(false);
+
+  if (!append) {
+    showLoading('正在加载知识库笔记...');
+    resetLoadedNotesState();
+    resetKnowledgeBasePaging();
+    activeTopicFilters.forEach(topicId => {
+      knowledgeBasePaging.set(String(topicId), {
+        nextPage: KNOWLEDGE_NOTES_FIRST_PAGE,
+        hasMore: true
+      });
+    });
+  } else {
+    showStatus('正在加载更多知识库笔记...', 'info');
+  }
+
+  try {
+    let workingNotes = append ? allNotes : [];
+    const topicIds = Array.from(activeTopicFilters);
+    const pagesToLoad = topicIds
+      .map(topicId => {
+        const state = knowledgeBasePaging.get(String(topicId)) || {
+          nextPage: KNOWLEDGE_NOTES_FIRST_PAGE,
+          hasMore: true
+        };
+
+        if (!state.hasMore) {
+          return null;
+        }
+
+        return { topicId: String(topicId), page: state.nextPage };
+      })
+      .filter(Boolean);
+
+    if (pagesToLoad.length === 0) {
+      hasMoreNotes = false;
+      updateLoadMoreVisibility(false);
+      showStatus('当前知识库已经全部加载完成', 'success');
+      applyFilters();
+      return;
+    }
+
+    if (!append) {
+      showStatus('正在快速加载知识库笔记...', 'info');
+    }
+
+    const results = await Promise.all(
+      pagesToLoad.map(async ({ topicId, page }) => {
+        const result = await getKnowledgeNotes(topicId, page);
+        return { ...result, topicId };
+      })
+    );
+
+    const mergedNotes = results.flatMap(result => result.notes);
+    const mergeResult = mergeNotes(workingNotes, mergedNotes);
+    workingNotes = mergeResult.merged;
+
+    results.forEach(result => {
+      knowledgeBasePaging.set(String(result.topicId), {
+        nextPage: result.page + 1,
+        hasMore: result.hasMore
+      });
+    });
+
+    allNotes = workingNotes;
+    syncKnowledgeBasesFromNotes();
+    hasMoreNotes = Array.from(knowledgeBasePaging.values()).some(state => state.hasMore);
+    updateLoadMoreVisibility(hasMoreNotes);
+    showStatus(`已按知识库加载 ${allNotes.length} 条笔记`, 'success');
+
+    applyFilters();
+  } catch (error) {
+    showStatus(`加载知识库笔记失败: ${error.message}`);
+    if (!append) {
+      showEmpty('加载失败', '知识库筛选已开启，但知识库笔记接口返回失败，请检查接口权限或稍后重试。');
+    }
+  } finally {
+    isLoadingNotes = false;
+  }
+}
+
 function resetFilters() {
+  const hadTopicFilters = activeTopicFilters.size > 0;
   keyword = '';
   topicFilterKeyword = '';
   tagFilterKeyword = '';
@@ -487,7 +845,11 @@ function resetFilters() {
   tagFilterSearch.value = '';
   activeTopicFilters.clear();
   activeTagFilters.clear();
-  applyFilters();
+  if (hadTopicFilters) {
+    loadNotes('0', false);
+  } else {
+    applyFilters();
+  }
 }
 
 function fillDetailPlaceholder() {
@@ -586,6 +948,35 @@ function downloadBlob(blob, filename) {
 
 function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function withRateLimitRetry(task, label, options = {}) {
+  const {
+    maxRetries = LIST_FETCH_MAX_RETRIES,
+    retryDelayMs = LIST_FETCH_RETRY_DELAY_MS
+  } = options;
+
+  let attempt = 0;
+
+  while (attempt <= maxRetries) {
+    try {
+      return await task();
+    } catch (error) {
+      attempt += 1;
+      const message = error?.message || '';
+      const isRateLimited = message.includes(`(${RATE_LIMIT_STATUS})`);
+
+      if (!isRateLimited || attempt > maxRetries) {
+        throw error;
+      }
+
+      const backoff = retryDelayMs * attempt;
+      showStatus(`${label}请求过快，${Math.ceil(backoff / 1000)} 秒后重试 (${attempt}/${maxRetries})`, 'info');
+      await wait(backoff);
+    }
+  }
+
+  throw new Error(`${label}失败`);
 }
 
 function textToUint8Array(text) {
@@ -702,11 +1093,69 @@ function buildZip(files) {
 }
 
 async function getKnowledgeList() {
-  const resp = await apiGet('/knowledge/list', { page: 1 });
+  const resp = await withRateLimitRetry(
+    () => apiGet('/knowledge/list', { page: 1 }),
+    '知识库列表'
+  );
   if (!resp.success) {
     throw new Error(resp.error?.message || '获取知识库列表失败');
   }
-  return resp.data?.topics || [];
+  return extractKnowledgeBaseList(resp).map(item => ({ ...item, source: 'owned' }));
+}
+
+async function getSubscribedKnowledgeList() {
+  const resp = await withRateLimitRetry(
+    () => apiGet('/knowledge/subscribe/list', { page: 1 }),
+    '订阅知识库列表'
+  );
+  if (!resp.success) {
+    throw new Error(resp.error?.message || '获取订阅知识库列表失败');
+  }
+  return extractKnowledgeBaseList(resp).map(item => ({ ...item, source: 'subscribed' }));
+}
+
+function extractNotesList(resp) {
+  const candidates = [
+    resp?.data?.notes,
+    resp?.data?.list,
+    resp?.data?.items,
+    resp?.data,
+    resp?.notes,
+    resp?.list,
+    resp?.items
+  ];
+
+  const list = candidates.find(Array.isArray);
+  return Array.isArray(list) ? list : [];
+}
+
+function extractPagedHasMore(resp, currentPage, loadedCount) {
+  if (typeof resp?.data?.has_more === 'boolean') return resp.data.has_more;
+  if (typeof resp?.has_more === 'boolean') return resp.has_more;
+
+  const total = Number(resp?.data?.total || resp?.total || 0);
+  if (Number.isFinite(total) && total > 0) {
+    return currentPage * loadedCount < total;
+  }
+
+  return loadedCount > 0;
+}
+
+async function getKnowledgeNotes(topicId, page = KNOWLEDGE_NOTES_FIRST_PAGE) {
+  const resp = await withRateLimitRetry(
+    () => apiGet('/knowledge/notes', { topic_id: topicId, page }),
+    '知识库笔记'
+  );
+  if (!resp.success) {
+    throw new Error(resp.error?.message || '获取知识库笔记失败');
+  }
+
+  const notes = extractNotesList(resp);
+  return {
+    notes,
+    hasMore: extractPagedHasMore(resp, page, notes.length),
+    page
+  };
 }
 
 async function getNoteList(cursor = '0', limit = 20) {
@@ -717,7 +1166,10 @@ async function getNoteList(cursor = '0', limit = 20) {
     params.since_id = '0';
   }
 
-  const resp = await apiGet('/note/list', params);
+  const resp = await withRateLimitRetry(
+    () => apiGet('/note/list', params),
+    '笔记列表'
+  );
   if (!resp.success) {
     throw new Error(resp.error?.message || '获取笔记列表失败');
   }
@@ -786,13 +1238,27 @@ async function loadKnowledgeBases() {
   }
 
   try {
-    knowledgeBases = (await getKnowledgeList()).map(topic => ({
-      id: String(topic.topic_id || topic.id || topic.name || ''),
-      name: topic.name || ''
-    })).filter(topic => topic.id && topic.name);
+    const sources = [];
+
+    try {
+      sources.push(...await getKnowledgeList());
+    } catch (error) {
+      console.warn('load owned knowledge bases failed', error);
+    }
+
+    try {
+      sources.push(...await getSubscribedKnowledgeList());
+    } catch (error) {
+      console.warn('load subscribed knowledge bases failed', error);
+    }
+
+    knowledgeBases = dedupeKnowledgeBases(sources);
+    syncKnowledgeBasesFromNotes();
     renderFilterChips();
   } catch (error) {
     showStatus(`获取知识库列表失败: ${error.message}`);
+    syncKnowledgeBasesFromNotes();
+    renderFilterChips();
   }
 }
 
@@ -882,6 +1348,7 @@ async function loadNotes(cursor = '0', append = false) {
   }
 
   isLoadingNotes = true;
+  noteFeedMode = 'all';
   if (!append) {
     showLoading('正在自动加载笔记...');
   } else {
@@ -904,9 +1371,10 @@ async function loadNotes(cursor = '0', append = false) {
       showStatus(`已自动加载 ${allNotes.length} 条笔记`, 'success');
     }
 
+    syncKnowledgeBasesFromNotes();
     lastCursor = result.nextCursor;
     hasMoreNotes = result.hasMore;
-    loadMoreContainer.style.display = hasMoreNotes ? 'block' : 'none';
+    updateLoadMoreVisibility(hasMoreNotes);
     applyFilters();
   } catch (error) {
     showStatus(`加载失败: ${error.message}`);
@@ -933,12 +1401,50 @@ async function saveConfig() {
   apiKeyInput.placeholder = 'API Key 已保存';
   clientIdInput.placeholder = 'Client ID 已保存';
   updateSettingsButtonLabel();
+  updateClearConfigVisibility();
 
   await loadKnowledgeBases();
   closeSettings();
+  refreshNotesForCurrentFilters();
+}
+
+function clearConfig() {
+  clearConfigLocal();
+  noteFeedMode = 'all';
+  resetKnowledgeBasePaging();
+  apiKeyInput.value = '';
+  clientIdInput.value = '';
+  apiKeyInput.placeholder = 'gk_live_xxx';
+  clientIdInput.placeholder = 'cli_xxx';
+
+  allNotes = [];
+  filteredNotes = [];
+  knowledgeBases = [];
+  selectedNotes.clear();
+  activeTopicFilters.clear();
+  activeTagFilters.clear();
+  detailCache.clear();
   lastCursor = '0';
+  currentNoteId = null;
+  keyword = '';
+  topicFilterKeyword = '';
+  tagFilterKeyword = '';
   hasMoreNotes = false;
-  loadNotes('0', false);
+
+  if (searchInput) searchInput.value = '';
+  if (topicFilterSearch) topicFilterSearch.value = '';
+  if (tagFilterSearch) tagFilterSearch.value = '';
+  updateLoadMoreVisibility(false);
+
+  fillDetailPlaceholder();
+  renderFilterChips();
+  updateStats();
+  updateResultsMeta();
+  updateSettingsButtonLabel();
+  updateClearConfigVisibility();
+  showEmpty('先完成接口设置', '第一次进入时，先填写你自己的 API Key 和 Client ID。');
+  showStatus('已清除当前浏览器本地保存的 API 配置。', 'success');
+  openSettings();
 }
 
 function refreshNotes() {
@@ -948,9 +1454,7 @@ function refreshNotes() {
     return;
   }
 
-  lastCursor = '0';
-  hasMoreNotes = false;
-  loadNotes('0', false);
+  refreshNotesForCurrentFilters();
 }
 
 async function checkConfig() {
@@ -964,10 +1468,12 @@ async function checkConfig() {
     apiKeyInput.placeholder = 'API Key 已保存';
     clientIdInput.placeholder = 'Client ID 已保存';
     updateSettingsButtonLabel();
+    updateClearConfigVisibility();
     return true;
   }
 
   updateSettingsButtonLabel();
+  updateClearConfigVisibility();
   return false;
 }
 
@@ -989,6 +1495,10 @@ function toggleDropdown(target) {
 saveConfigBtn?.addEventListener('click', event => {
   event.preventDefault();
   saveConfig();
+});
+clearConfigBtn?.addEventListener('click', event => {
+  event.preventDefault();
+  clearConfig();
 });
 refreshBtn?.addEventListener('click', event => {
   event.preventDefault();
@@ -1053,32 +1563,18 @@ settingsOverlay?.addEventListener('click', event => {
   }
 });
 notesContainer?.addEventListener('scroll', () => {
-  const remaining = notesContainer.scrollHeight - notesContainer.scrollTop - notesContainer.clientHeight;
-  if (remaining < 120 && hasMoreNotes && !isLoadingNotes) {
-    loadNotes(lastCursor, true);
-  }
+  return;
 });
 
 window.__getNotesApp = {
   openSettings,
   closeSettings,
   saveConfig,
+  clearConfig,
   refreshNotes,
   batchDownloadOriginal: () => batchDownload('original'),
   batchDownloadAi: () => batchDownload('ai')
 };
-
-const onboardingObserver = new MutationObserver(() => {
-  enhanceSettingsOnboarding();
-});
-
-if (notesContainer) {
-  onboardingObserver.observe(notesContainer, { childList: true, subtree: true });
-}
-
-if (settingsOverlay) {
-  onboardingObserver.observe(settingsOverlay, { childList: true, subtree: true, attributes: true });
-}
 
 (async () => {
   fillDetailPlaceholder();
@@ -1087,13 +1583,14 @@ if (settingsOverlay) {
   updateResultsMeta();
   updateDropdownLabels();
   updateSettingsButtonLabel();
+  updateClearConfigVisibility();
   enhanceSettingsOnboarding();
 
   const configured = await checkConfig();
   if (configured) {
     showStatus('配置已识别，正在自动加载数据', 'info');
     await loadKnowledgeBases();
-    loadNotes('0', false);
+    refreshNotesForCurrentFilters();
   } else {
     showEmpty('先完成接口设置', '第一次使用时先保存 API Key 和 Client ID。');
     openSettings();
