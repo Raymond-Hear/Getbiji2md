@@ -531,12 +531,14 @@ function applyProductCopy() {
   const guideList = document.querySelector('.settings-guide ol');
   if (guideList) {
     guideList.innerHTML = `
-      <li><a class="guide-link" href="https://www.biji.com/openapi?tab=clients" target="_blank" rel="noopener noreferrer">打开开放平台<span class="link-badge">获取</span></a></li>
+      <li><a class="guide-link" href="https://www.biji.com/openapi?tab=clients" target="_blank" rel="noopener noreferrer">打开 Get 笔记开放平台<span class="link-badge">获取</span></a></li>
       <li>复制 API Key 和 Client ID。</li>
     `;
   }
   const memberNote = document.querySelector('.member-note');
-  if (memberNote) memberNote.textContent = '需要 Get 笔记会员权限。';
+  if (memberNote) {
+    memberNote.innerHTML = '开放平台能力需要 Get 笔记会员。还没有会员？<a href="https://www.biji.com/i/0D8SZ0N4E3?os=ANDROID&referral=0D8SZ0N4E3&trace=eyJzX3VzZXJfaWQiOjEyMDIwOCwic19lbnRpdHlfdHlwZSI6Imludml0ZV9yZWZlcnJhbCIsInNfZW50aXR5X2lkIjoiNjhlMDA0OWY4ZTM0ZmNiNGQ2NGQ1MWM1In0%3D&uid=XyZzEwqy" target="_blank" rel="noopener noreferrer">领取 3 天体验</a>。';
+  }
   const privacyNote = document.querySelector('.privacy-note');
   if (privacyNote) privacyNote.textContent = '信息只保存在当前浏览器。';
   const fieldHints = document.querySelectorAll('.field-hint');
