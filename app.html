@@ -157,6 +157,79 @@
       line-height: 1.6;
     }
 
+    .hero-kicker {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(36, 106, 101, 0.10);
+      color: var(--teal);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .hero-copy {
+      max-width: 620px;
+    }
+
+    .hero-note {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .workflow-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .workflow-step {
+      padding: 14px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      background: rgba(255, 254, 250, 0.68);
+      box-shadow: 0 14px 32px rgba(23, 32, 29, 0.06);
+    }
+
+    .workflow-step span {
+      display: inline-grid;
+      place-items: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      background: rgba(38, 104, 95, 0.12);
+      color: var(--teal);
+      font-size: 12px;
+      font-weight: 900;
+      margin-bottom: 10px;
+    }
+
+    .workflow-step strong {
+      display: block;
+      font-size: 14px;
+      color: var(--text);
+      margin-bottom: 5px;
+    }
+
+    .workflow-step p {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
     .hero-stats {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -485,6 +558,22 @@
       color: var(--muted);
       font-size: 13px;
       padding: 8px 0;
+    }
+
+    .current-filters-block {
+      margin-top: 16px;
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255, 254, 250, 0.52);
+      border: 1px solid rgba(23, 32, 29, 0.08);
+    }
+
+    .current-filters-title {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 10px;
     }
 
     .mini-chip {
@@ -1072,6 +1161,10 @@
         width: 100%;
       }
 
+      .workflow-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
       .hero-foot {
         flex-direction: column;
         align-items: flex-start;
@@ -1108,6 +1201,10 @@
       }
 
       .hero-stats {
+        grid-template-columns: 1fr;
+      }
+
+      .workflow-strip {
         grid-template-columns: 1fr;
       }
 
@@ -1208,6 +1305,20 @@
     h1 {
       letter-spacing: 0;
     }
+
+    .hero {
+      display: grid;
+      gap: 22px;
+    }
+
+    .hero-top {
+      align-items: flex-start;
+    }
+
+    .topbar-actions {
+      position: relative;
+      z-index: 3;
+    }
   </style>
 </head>
 <body>
@@ -1217,14 +1328,19 @@
         <div class="hero-top">
           <div class="brand-line">
             <img class="brand-mark" src="icons/icon128.png" alt="Get 笔记 Markdown 下载工具图标">
-            <div class="brand-copy">
-              <span class="eyebrow">Get Notes</span>
-              <h1>Get 笔记 Markdown 导出工具</h1>
-              <p>同步、筛选、预览并导出你的 Get 笔记。</p>
+            <div class="brand-copy hero-copy">
+              <div class="hero-kicker">
+                <span class="eyebrow">Get Notes</span>
+                <span class="hero-badge">V0.1 Open Source</span>
+              </div>
+              <h1>把 Get 笔记带回你的写作流</h1>
+              <p>同步、筛选、预览，再导出为 Markdown。适合备份、整理和迁移到自己的知识管理系统。</p>
+              <div class="hero-note">你的 API Key 和笔记内容只保存在当前浏览器。</div>
             </div>
           </div>
           <div class="topbar-actions">
             <a class="btn btn-secondary" href="index.html">返回介绍</a>
+            <a class="btn btn-secondary" href="https://github.com/Raymond-Hear/Getbiji2md" target="_blank" rel="noopener noreferrer">项目源码</a>
             <button id="openSettingsBtn" class="btn btn-secondary" onclick="window.__getNotesApp?.openSettings()">设置</button>
             <button id="refreshBtn" class="btn btn-primary" onclick="window.__getNotesApp?.refreshNotes()">同步我的笔记</button>
           </div>
@@ -1253,6 +1369,29 @@
             </div>
           </div>
         </div>
+      </section>
+
+      <section class="workflow-strip" aria-label="使用流程">
+        <article class="workflow-step">
+          <span>1</span>
+          <strong>设置</strong>
+          <p>填入开放平台信息。</p>
+        </article>
+        <article class="workflow-step">
+          <span>2</span>
+          <strong>同步</strong>
+          <p>拉取你的笔记内容。</p>
+        </article>
+        <article class="workflow-step">
+          <span>3</span>
+          <strong>筛选</strong>
+          <p>按标签、关键词缩小范围。</p>
+        </article>
+        <article class="workflow-step">
+          <span>4</span>
+          <strong>导出</strong>
+          <p>下载原文或 AI 总结。</p>
+        </article>
       </section>
 
       <div id="tool" class="shell tool-anchor">
@@ -1303,8 +1442,8 @@
               </div>
             </div>
 
-            <div style="margin-top: 16px;">
-              <h3 style="font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px;">当前筛选</h3>
+            <div class="current-filters-block">
+              <h3 class="current-filters-title">当前筛选</h3>
               <div id="activeFilters" class="active-filters empty">还没有启用任何筛选条件</div>
             </div>
           </section>

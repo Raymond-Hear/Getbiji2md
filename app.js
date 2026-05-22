@@ -481,8 +481,10 @@ function setupFilterLayout() {
 
 function applyProductCopy() {
   document.querySelector('.brand-mark')?.setAttribute('alt', 'Get 笔记 Markdown 导出工具图标');
-  document.querySelector('.brand-copy h1') && (document.querySelector('.brand-copy h1').textContent = 'Get 笔记 Markdown 导出工具');
-  document.querySelector('.brand-copy p') && (document.querySelector('.brand-copy p').textContent = '同步、筛选、预览并导出你的 Get 笔记。');
+  document.querySelector('.brand-copy h1') && (document.querySelector('.brand-copy h1').textContent = '把 Get 笔记带回你的写作流');
+  document.querySelector('.brand-copy p') && (document.querySelector('.brand-copy p').textContent = '同步、筛选、预览，再导出为 Markdown。适合备份、整理和迁移到自己的知识管理系统。');
+  const heroNote = document.querySelector('.hero-note');
+  if (heroNote) heroNote.textContent = '你的 API Key 和笔记内容只保存在当前浏览器。';
 
   if (refreshBtn) refreshBtn.textContent = '同步我的笔记';
   if (openSettingsBtn) openSettingsBtn.textContent = '设置';
