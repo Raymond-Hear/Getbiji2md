@@ -1,8 +1,11 @@
 const API_BASE = 'https://openapi.biji.com/open/api/v1/resource';
+const IS_LOCAL_ENV = window.location.protocol === 'file:' || ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const ENABLE_KNOWLEDGE_BASE_FILTER = IS_LOCAL_ENV;
 const STORAGE_KEYS = {
   apiKey: 'get-notes-api-key',
   clientId: 'get-notes-client-id',
-  viewState: 'get-notes-view-state'
+  viewState: 'get-notes-view-state',
+  syncGuideSeen: 'get-notes-sync-guide-seen'
 };
 
 const RATE_LIMIT_STATUS = 429;
@@ -25,6 +28,8 @@ const apiKeyInput = document.getElementById('apiKeyInput');
 const clientIdInput = document.getElementById('clientIdInput');
 const saveConfigBtn = document.getElementById('saveConfigBtn');
 const clearConfigBtn = document.getElementById('clearConfigBtn');
+const settingsBackBtn = document.getElementById('settingsBackBtn');
+const settingsStepError = document.getElementById('settingsStepError');
 const refreshBtn = document.getElementById('refreshBtn');
 const statusBar = document.getElementById('statusBar');
 const backBtn = document.getElementById('backBtn');
@@ -59,6 +64,8 @@ let tagSearchKeyword = '';
 let activeKnowledgeBaseId = '';
 let allScopeSnapshot = null;
 let knowledgeBaseSyncState = 'idle';
+let settingsStep = 0;
+let syncGuideVisible = false;
 
 const activeTagFilters = new Set();
 const selectedNotes = new Set();
@@ -78,6 +85,7 @@ detailView?.classList.add('active');
 injectEnhancementStyles();
 setupFilterLayout();
 applyProductCopy();
+applyEnvironmentCopy();
 
 function injectEnhancementStyles() {
   const style = document.createElement('style');
@@ -248,6 +256,95 @@ function injectEnhancementStyles() {
       font-weight: 700;
     }
 
+    .sync-guide-popover {
+      position: fixed;
+      z-index: 320;
+      width: min(320px, calc(100vw - 32px));
+      padding: 16px 16px 14px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.78);
+      background: rgba(255, 253, 249, 0.98);
+      box-shadow: 0 22px 50px rgba(65, 46, 29, 0.16);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-6px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .sync-guide-popover.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    .sync-guide-popover::after {
+      content: "";
+      position: absolute;
+      top: -8px;
+      right: 34px;
+      width: 16px;
+      height: 16px;
+      background: inherit;
+      border-top: 1px solid rgba(255, 255, 255, 0.78);
+      border-left: 1px solid rgba(255, 255, 255, 0.78);
+      transform: rotate(45deg);
+    }
+
+    .sync-guide-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(36, 106, 101, 0.10);
+      color: var(--teal);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .sync-guide-title {
+      margin-top: 12px;
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .sync-guide-copy {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .sync-guide-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+
+    .btn-attention {
+      position: relative;
+      box-shadow: 0 0 0 0 rgba(36, 106, 101, 0.26);
+      animation: syncPulse 1.8s ease-out infinite;
+    }
+
+    @keyframes syncPulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(36, 106, 101, 0.26);
+      }
+
+      70% {
+        box-shadow: 0 0 0 14px rgba(36, 106, 101, 0);
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(36, 106, 101, 0);
+      }
+    }
+
     .floating-loader-copy {
       font-size: 12px;
       color: var(--text);
@@ -370,6 +467,15 @@ function setupFilterLayout() {
     floatingLoaderCopy: document.getElementById('floatingLoaderCopy')
   };
 
+  if (!ENABLE_KNOWLEDGE_BASE_FILTER) {
+    filterElements.ownedKnowledgeDropdown?.remove();
+    filterElements.ownedKnowledgeDropdown = null;
+    filterElements.ownedKnowledgeDropdownBtn = null;
+    filterElements.ownedKnowledgeDropdownLabel = null;
+    filterElements.ownedKnowledgeFilterSearch = null;
+    filterElements.ownedKnowledgeFilters = null;
+  }
+
   hideBottomLoadMore();
 }
 
@@ -417,31 +523,51 @@ function applyProductCopy() {
   const settingsTitle = document.querySelector('.settings-copy h2');
   if (settingsTitle) settingsTitle.textContent = '先完成一次设置';
   const settingsIntro = document.querySelector('.settings-copy p');
-  if (settingsIntro) settingsIntro.textContent = '只需要填入你的 API Key 和 Client ID，保存后就可以同步、筛选和导出自己的笔记。';
+  if (settingsIntro) settingsIntro.textContent = '填好两项信息，就可以开始同步。';
   if (closeSettingsBtn) closeSettingsBtn.textContent = '关闭';
 
   const guideTitle = document.querySelector('.settings-guide h3');
-  if (guideTitle) guideTitle.textContent = '获取 API Key 和 Client ID';
+  if (guideTitle) guideTitle.textContent = '准备这两项信息';
   const guideList = document.querySelector('.settings-guide ol');
   if (guideList) {
     guideList.innerHTML = `
-      <li>打开 <a class="guide-link" href="https://www.biji.com/openapi?tab=clients" target="_blank" rel="noopener noreferrer">Get 笔记开放平台<span class="link-badge">点击打开</span></a> 并登录账号。</li>
-      <li>找到 Get 笔记对应的开放应用。</li>
-      <li>生成并保存你的 API Key 和 Client ID。</li>
-      <li>回到这里填入两项信息，点击“保存并开始”。</li>
+      <li><a class="guide-link" href="https://www.biji.com/openapi?tab=clients" target="_blank" rel="noopener noreferrer">打开开放平台<span class="link-badge">获取</span></a></li>
+      <li>复制 API Key 和 Client ID。</li>
     `;
   }
   const memberNote = document.querySelector('.member-note');
-  if (memberNote) memberNote.textContent = '如果你还没有 API Key，可以先去开放平台确认账号权限。';
+  if (memberNote) memberNote.textContent = '需要 Get 笔记会员权限。';
   const privacyNote = document.querySelector('.privacy-note');
-  if (privacyNote) privacyNote.textContent = '这里不会替你保存账号体系，API Key 和 Client ID 只保存在当前浏览器本地。';
+  if (privacyNote) privacyNote.textContent = '信息只保存在当前浏览器。';
   const fieldHints = document.querySelectorAll('.field-hint');
-  if (fieldHints[0]) fieldHints[0].textContent = '填入你自己的 API Key，用来读取笔记内容。';
-  if (fieldHints[1]) fieldHints[1].textContent = '填入对应的 Client ID，保存后就可以开始同步。';
+  if (fieldHints[0]) fieldHints[0].textContent = '从开放平台复制。';
+  if (fieldHints[1]) fieldHints[1].textContent = '和 API Key 同一处获取。';
   const settingsFoot = document.querySelector('.settings-foot .panel-subtitle');
-  if (settingsFoot) settingsFoot.textContent = '保存后会自动准备你的知识库和首批笔记内容。';
+  if (settingsFoot) settingsFoot.textContent = '';
   if (clearConfigBtn) clearConfigBtn.textContent = '清除本地配置';
-  if (saveConfigBtn) saveConfigBtn.textContent = '保存并开始';
+  if (settingsBackBtn) settingsBackBtn.textContent = '上一步';
+  updateSettingsWizard();
+}
+
+function applyEnvironmentCopy() {
+  const panelSubtitle = document.querySelector('.filters-panel .panel-subtitle');
+  if (panelSubtitle) {
+    panelSubtitle.textContent = ENABLE_KNOWLEDGE_BASE_FILTER
+      ? '先选知识库，再用标签和关键词缩小范围。'
+      : '先同步笔记，再用标签和关键词缩小范围。';
+  }
+
+  const dropdownStrong = document.querySelectorAll('.dropdown-label strong');
+  if (ENABLE_KNOWLEDGE_BASE_FILTER) {
+    if (dropdownStrong[0]) dropdownStrong[0].textContent = '我的知识库';
+    if (dropdownStrong[1]) dropdownStrong[1].textContent = '标签筛选';
+  } else if (dropdownStrong[0]) {
+    dropdownStrong[0].textContent = '标签筛选';
+  }
+
+  if (filterElements.filterInlineMeta) {
+    filterElements.filterInlineMeta.textContent = '完成设置后，点击右上角“同步我的笔记”开始加载内容。';
+  }
 }
 
 function hideBottomLoadMore() {
@@ -451,11 +577,97 @@ function hideBottomLoadMore() {
 }
 
 function openSettings() {
+  setSettingsStep(0);
   settingsOverlay?.classList.add('open');
 }
 
 function closeSettings() {
   settingsOverlay?.classList.remove('open');
+  hideSettingsStepError();
+}
+
+function setSettingsStep(nextStep) {
+  settingsStep = Math.max(0, Math.min(3, nextStep));
+  hideSettingsStepError();
+  updateSettingsWizard();
+}
+
+function updateSettingsWizard() {
+  document.querySelectorAll('[data-settings-step]').forEach(element => {
+    const step = Number(element.dataset.settingsStep || 0);
+    const active = step === settingsStep;
+    element.classList.toggle('is-active', active);
+    element.setAttribute('aria-hidden', active ? 'false' : 'true');
+  });
+
+  document.querySelectorAll('[data-settings-dot]').forEach(dot => {
+    const step = Number(dot.dataset.settingsDot || 0);
+    dot.classList.toggle('is-active', step === settingsStep);
+    dot.classList.toggle('is-done', step < settingsStep);
+  });
+
+  const settingsTitle = document.querySelector('.settings-copy h2');
+  const settingsIntro = document.querySelector('.settings-copy p');
+  const settingsFoot = document.querySelector('.settings-foot .panel-subtitle');
+  const copyByStep = [
+    ['准备信息', '需要 API Key 和 Client ID。'],
+    ['填 API Key', '从开放平台复制。'],
+    ['填 Client ID', '和 API Key 同一处获取。'],
+    ['准备开始', '保存后会引导你去点击同步按钮。']
+  ];
+
+  if (settingsTitle) settingsTitle.textContent = copyByStep[settingsStep][0];
+  if (settingsIntro) settingsIntro.textContent = copyByStep[settingsStep][1];
+  if (settingsFoot) settingsFoot.textContent = '';
+
+  if (settingsBackBtn) settingsBackBtn.classList.toggle('is-hidden', settingsStep === 0);
+  if (saveConfigBtn) saveConfigBtn.textContent = settingsStep === 3 ? '保存并继续' : '下一步';
+
+  if (settingsStep === 1) {
+    setTimeout(() => apiKeyInput?.focus(), 0);
+  } else if (settingsStep === 2) {
+    setTimeout(() => clientIdInput?.focus(), 0);
+  }
+}
+
+function showSettingsStepError(message) {
+  if (!settingsStepError) {
+    showStatus(message);
+    return;
+  }
+
+  settingsStepError.textContent = message;
+  settingsStepError.classList.add('visible');
+}
+
+function hideSettingsStepError() {
+  settingsStepError?.classList.remove('visible');
+}
+
+function canMoveToNextSettingsStep() {
+  if (settingsStep === 1 && !apiKeyInput.value.trim()) {
+    showSettingsStepError('先填入 API Key，再进入下一步。');
+    apiKeyInput?.focus();
+    return false;
+  }
+
+  if (settingsStep === 2 && !clientIdInput.value.trim()) {
+    showSettingsStepError('先填入 Client ID，再进入下一步。');
+    clientIdInput?.focus();
+    return false;
+  }
+
+  return true;
+}
+
+function handleSettingsPrimaryAction() {
+  if (settingsStep < 3) {
+    if (!canMoveToNextSettingsStep()) return;
+    setSettingsStep(settingsStep + 1);
+    return;
+  }
+
+  saveConfig();
 }
 
 function showStatus(message, type = 'error') {
@@ -541,6 +753,75 @@ function clearConfigLocal() {
   hasSavedConfig = false;
 }
 
+function hasSeenSyncGuide() {
+  return localStorage.getItem(STORAGE_KEYS.syncGuideSeen) === '1';
+}
+
+function markSyncGuideSeen() {
+  localStorage.setItem(STORAGE_KEYS.syncGuideSeen, '1');
+}
+
+function clearSyncGuideSeen() {
+  localStorage.removeItem(STORAGE_KEYS.syncGuideSeen);
+}
+
+function ensureSyncGuide() {
+  if (document.getElementById('syncGuidePopover')) return;
+
+  const guide = document.createElement('div');
+  guide.id = 'syncGuidePopover';
+  guide.className = 'sync-guide-popover';
+  guide.innerHTML = `
+    <div class="sync-guide-eyebrow">Next Step</div>
+    <div class="sync-guide-title">点这里同步你的笔记</div>
+    <div class="sync-guide-copy">刚完成设置后，还需要点一下右上角的“同步我的笔记”。第一次同步完成后，你就可以继续筛选、预览和导出了。</div>
+    <div class="sync-guide-actions">
+      <button id="syncGuideGoBtn" class="btn btn-primary" type="button">现在去同步</button>
+      <button id="syncGuideDismissBtn" class="btn btn-secondary" type="button">我知道了</button>
+    </div>
+  `;
+  document.body.appendChild(guide);
+
+  document.getElementById('syncGuideGoBtn')?.addEventListener('click', async () => {
+    hideSyncGuide({ markSeen: true });
+    await refreshNotes();
+  });
+  document.getElementById('syncGuideDismissBtn')?.addEventListener('click', () => {
+    hideSyncGuide({ markSeen: true });
+  });
+}
+
+function positionSyncGuide() {
+  const guide = document.getElementById('syncGuidePopover');
+  if (!guide || !refreshBtn || !syncGuideVisible) return;
+
+  const rect = refreshBtn.getBoundingClientRect();
+  const guideWidth = Math.min(320, window.innerWidth - 32);
+  const left = Math.max(16, Math.min(rect.right - guideWidth, window.innerWidth - guideWidth - 16));
+  guide.style.top = `${rect.bottom + 12}px`;
+  guide.style.left = `${left}px`;
+}
+
+function showSyncGuide() {
+  if (!hasSavedConfig || hasSeenSyncGuide() || !refreshBtn) return;
+
+  ensureSyncGuide();
+  syncGuideVisible = true;
+  refreshBtn.classList.add('btn-attention');
+  document.getElementById('syncGuidePopover')?.classList.add('visible');
+  positionSyncGuide();
+}
+
+function hideSyncGuide(options = {}) {
+  const { markSeen = false } = options;
+  syncGuideVisible = false;
+  refreshBtn?.classList.remove('btn-attention');
+  document.getElementById('syncGuidePopover')?.classList.remove('visible');
+  if (markSeen) {
+    markSyncGuideSeen();
+  }
+}
+
 function cacheAllScopeSnapshot() {
   if (activeKnowledgeBaseId) return;
 
@@ -617,11 +898,15 @@ function restoreViewState() {
 
   try {
     const payload = JSON.parse(raw);
-    ownedKnowledgeBases = Array.isArray(payload.ownedKnowledgeBases) ? payload.ownedKnowledgeBases : [];
+    ownedKnowledgeBases = ENABLE_KNOWLEDGE_BASE_FILTER && Array.isArray(payload.ownedKnowledgeBases)
+      ? payload.ownedKnowledgeBases
+      : [];
     allNotes = Array.isArray(payload.allNotes) ? payload.allNotes : [];
     allScopeSnapshot = payload.allScopeSnapshot || null;
     keyword = typeof payload.keyword === 'string' ? payload.keyword : '';
-    activeKnowledgeBaseId = typeof payload.activeKnowledgeBaseId === 'string' ? payload.activeKnowledgeBaseId : '';
+    activeKnowledgeBaseId = ENABLE_KNOWLEDGE_BASE_FILTER && typeof payload.activeKnowledgeBaseId === 'string'
+      ? payload.activeKnowledgeBaseId
+      : '';
     currentNoteId = typeof payload.currentNoteId === 'string' ? payload.currentNoteId : null;
 
     activeTagFilters.clear();
@@ -1595,11 +1880,19 @@ function applyContextToLoadState(context) {
 }
 
 function getCurrentScopeName() {
-  if (!activeKnowledgeBaseId) return '全部笔记';
+  if (!ENABLE_KNOWLEDGE_BASE_FILTER || !activeKnowledgeBaseId) return '全部笔记';
   return ownedKnowledgeBases.find(item => item.id === activeKnowledgeBaseId)?.name || '我的知识库';
 }
 
 async function loadOwnedKnowledgeBases(options = {}) {
+  if (!ENABLE_KNOWLEDGE_BASE_FILTER) {
+    ownedKnowledgeBases = [];
+    activeKnowledgeBaseId = '';
+    knowledgeBaseSyncState = 'idle';
+    renderFilters();
+    return;
+  }
+
   const {
     silent = false,
     preserveExisting = true,
@@ -1817,13 +2110,17 @@ async function refreshNotesForCurrentFilters() {
 }
 
 async function refreshNotes() {
+  hideSyncGuide({ markSeen: true });
+
   if (!hasSavedConfig) {
     showStatus('先完成设置，再同步你的笔记', 'info');
     openSettings();
     return;
   }
 
-  await loadOwnedKnowledgeBases({ preserveExisting: false });
+  if (ENABLE_KNOWLEDGE_BASE_FILTER) {
+    await loadOwnedKnowledgeBases({ preserveExisting: false });
+  }
   await refreshNotesForCurrentFilters();
   if (loadState.hasMore) {
     await loadAllRemainingForCurrentFeed();
@@ -2075,11 +2372,12 @@ async function saveConfig() {
   const clientId = clientIdInput.value.trim();
 
   if (!apiKey || !clientId) {
-    showStatus('请填写完整的 API 配置');
+    showSettingsStepError('请先填完整 API Key 和 Client ID。');
     return;
   }
 
   saveConfigLocal(apiKey, clientId);
+  clearSyncGuideSeen();
   apiKeyInput.value = '';
   clientIdInput.value = '';
   apiKeyInput.placeholder = 'API Key 已保存';
@@ -2087,9 +2385,10 @@ async function saveConfig() {
   updateSettingsButtonLabel();
   updateClearConfigVisibility();
 
-  await loadOwnedKnowledgeBases();
   closeSettings();
-  await refreshNotesForCurrentFilters();
+  showEmpty('下一步是同步笔记', '点右上角“同步我的笔记”后，这里就会开始出现内容。');
+  showStatus('配置已保存。下一步请点击右上角“同步我的笔记”。', 'success');
+  showSyncGuide();
   saveViewState();
 }
 
@@ -2120,6 +2419,8 @@ function clearConfig() {
   clientIdInput.value = '';
   apiKeyInput.placeholder = 'gk_live_xxx';
   clientIdInput.placeholder = 'cli_xxx';
+  clearSyncGuideSeen();
+  hideSyncGuide();
 
   updateSettingsButtonLabel();
   updateClearConfigVisibility();
@@ -2132,7 +2433,11 @@ function clearConfig() {
 function bindEvents() {
   saveConfigBtn?.addEventListener('click', event => {
     event.preventDefault();
-    saveConfig();
+    handleSettingsPrimaryAction();
+  });
+  settingsBackBtn?.addEventListener('click', event => {
+    event.preventDefault();
+    setSettingsStep(settingsStep - 1);
   });
   clearConfigBtn?.addEventListener('click', event => {
     event.preventDefault();
@@ -2205,6 +2510,8 @@ function bindEvents() {
       filterElements.tagDropdown?.classList.remove('open');
     }
   });
+  window.addEventListener('resize', positionSyncGuide);
+  window.addEventListener('scroll', positionSyncGuide, true);
   settingsOverlay?.addEventListener('click', event => {
     if (event.target === settingsOverlay) {
       closeSettings();
@@ -2237,16 +2544,16 @@ bindEvents();
       showStatus('已恢复上次浏览内容', 'success');
       renderFilters();
       updateResultsMeta();
-      if (ownedKnowledgeBases.length === 0) {
+      if (ENABLE_KNOWLEDGE_BASE_FILTER && ownedKnowledgeBases.length === 0) {
         knowledgeBaseSyncState = 'loading';
         loadOwnedKnowledgeBases({ silent: true, preserveExisting: true });
-      } else {
+      } else if (ENABLE_KNOWLEDGE_BASE_FILTER) {
         knowledgeBaseSyncState = 'ready';
       }
     } else {
-      showStatus('正在准备你的内容', 'info');
-      await loadOwnedKnowledgeBases();
-      await refreshNotesForCurrentFilters();
+      showEmpty('先同步一次笔记', '完成设置后，点击右上角“同步我的笔记”，就能开始筛选、预览和导出。');
+      showStatus('点击右上角“同步我的笔记”开始首次同步。', 'info');
+      showSyncGuide();
     }
   } else {
     showEmpty('先完成接口设置', '先保存 API Key 和 Client ID，然后就可以开始查看内容。');

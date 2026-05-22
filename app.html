@@ -850,6 +850,77 @@
       gap: 14px;
     }
 
+    .settings-stepper {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .settings-step-dot {
+      min-height: 7px;
+      border-radius: 999px;
+      background: rgba(106, 79, 53, 0.14);
+      overflow: hidden;
+    }
+
+    .settings-step-dot::before {
+      content: "";
+      display: block;
+      width: 0;
+      height: 100%;
+      background: var(--brand);
+      transition: width 0.2s ease;
+    }
+
+    .settings-step-dot.is-active::before,
+    .settings-step-dot.is-done::before {
+      width: 100%;
+    }
+
+    .settings-step {
+      display: none;
+    }
+
+    .settings-step.is-active {
+      display: block;
+    }
+
+    .settings-step-card {
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.58);
+      border: 1px solid var(--line);
+    }
+
+    .settings-step-card h3 {
+      font-size: 14px;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+
+    .settings-step-card p,
+    .settings-step-card li {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .settings-step-error {
+      display: none;
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(153, 52, 32, 0.1);
+      color: #8a2e1f;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .settings-step-error.visible {
+      display: block;
+    }
+
     .settings-guide {
       margin-bottom: 14px;
       padding: 14px 16px;
@@ -935,6 +1006,10 @@
       flex-wrap: wrap;
       gap: 10px;
       justify-content: flex-end;
+    }
+
+    .settings-actions .btn {
+      min-width: 112px;
     }
 
     .settings-actions .is-hidden {
@@ -1288,40 +1363,50 @@
       <div class="settings-head">
         <div class="settings-copy">
           <h2>先完成一次设置</h2>
-          <p>只需要填入你的 API Key 和 Client ID，保存后就可以同步、筛选和导出自己的笔记。</p>
+          <p>填好两项信息，就可以开始同步。</p>
         </div>
         <button id="closeSettingsBtn" class="btn btn-ghost" onclick="window.__getNotesApp?.closeSettings()">关闭</button>
       </div>
-      <div class="settings-guide">
-        <h3>获取 API Key 和 Client ID</h3>
-        <ol>
-          <li>打开 <a class="guide-link" href="https://www.biji.com/openapi?tab=clients" target="_blank" rel="noopener noreferrer">Get 笔记开放平台 <span class="link-badge">点击打开</span></a> 并登录账号。</li>
-          <li>找到 Get 笔记对应的开放应用。</li>
-          <li>生成并保存你的 API Key 和 Client ID。</li>
-          <li>回到这里填写 API Key 和 Client ID，点击「保存并开始」。</li>
-        </ol>
-        <p class="member-note">如果你还没有 API Key，可以先去开放平台确认账号权限。</p>
+      <div class="settings-stepper" aria-label="设置进度">
+        <span class="settings-step-dot is-active" data-settings-dot="0"></span>
+        <span class="settings-step-dot" data-settings-dot="1"></span>
+        <span class="settings-step-dot" data-settings-dot="2"></span>
+        <span class="settings-step-dot" data-settings-dot="3"></span>
       </div>
-      <div class="privacy-note">
-        这里不会替你保存账号体系，API Key 和 Client ID 只保存在当前浏览器本地。
+      <div class="settings-guide settings-step is-active" data-settings-step="0">
+        <h3>准备这两项信息</h3>
+        <ol>
+          <li><a class="guide-link" href="https://www.biji.com/openapi?tab=clients" target="_blank" rel="noopener noreferrer">打开开放平台<span class="link-badge">获取</span></a></li>
+          <li>复制 API Key 和 Client ID。</li>
+        </ol>
+        <p class="member-note">需要 Get 笔记会员权限。</p>
+      </div>
+      <div class="privacy-note settings-step is-active" data-settings-step="0">
+        信息只保存在当前浏览器。
       </div>
       <div class="settings-form">
-        <div class="field">
+        <div class="field settings-step" data-settings-step="1">
           <label for="apiKeyInput">API Key</label>
           <input type="password" id="apiKeyInput" placeholder="gk_live_xxx">
-          <div class="field-hint">填入你自己的 API Key，用来读取笔记内容。</div>
+          <div class="field-hint">从开放平台复制。</div>
         </div>
-        <div class="field">
+        <div class="field settings-step" data-settings-step="2">
           <label for="clientIdInput">Client ID</label>
           <input type="text" id="clientIdInput" placeholder="cli_xxx">
-          <div class="field-hint">填入对应的 Client ID，保存后就可以开始同步。</div>
+          <div class="field-hint">和 API Key 同一处获取。</div>
+        </div>
+        <div class="settings-step settings-step-card" data-settings-step="3">
+          <h3>开始同步</h3>
+          <p>保存后会自动加载你的笔记。</p>
         </div>
       </div>
+      <div id="settingsStepError" class="settings-step-error" role="alert"></div>
       <div class="settings-foot">
-        <div class="panel-subtitle">保存后会自动准备你的知识库和首批笔记内容。</div>
+        <div class="panel-subtitle"></div>
         <div class="settings-actions">
           <button id="clearConfigBtn" class="btn btn-danger is-hidden" onclick="window.__getNotesApp?.clearConfig()">清除本地配置</button>
-          <button id="saveConfigBtn" class="btn btn-primary" onclick="window.__getNotesApp?.saveConfig()">保存并开始</button>
+          <button id="settingsBackBtn" class="btn btn-secondary is-hidden" type="button">上一步</button>
+          <button id="saveConfigBtn" class="btn btn-primary" type="button">下一步</button>
         </div>
       </div>
     </div>
