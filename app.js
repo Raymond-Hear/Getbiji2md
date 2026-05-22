@@ -144,6 +144,28 @@ function injectEnhancementStyles() {
       background: rgba(163, 90, 36, 0.08);
     }
 
+    .active-filter-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border-style: solid;
+    }
+
+    .active-filter-chip .chip-remove {
+      display: inline-grid;
+      place-items: center;
+      width: 16px;
+      height: 16px;
+      border-radius: 999px;
+      background: rgba(32, 25, 19, 0.08);
+      font-size: 13px;
+      line-height: 1;
+    }
+
+    .active-filter-chip:hover .chip-remove {
+      background: rgba(32, 25, 19, 0.14);
+    }
+
     .topic-badge {
       display: inline-flex;
       align-items: center;
@@ -164,6 +186,12 @@ function injectEnhancementStyles() {
       gap: 8px;
       margin-top: 12px;
       margin-bottom: 4px;
+    }
+
+    .note-tag-trigger.is-active {
+      border-color: rgba(163, 90, 36, 0.42);
+      background: rgba(163, 90, 36, 0.16);
+      box-shadow: inset 0 0 0 1px rgba(163, 90, 36, 0.08);
     }
 
     .floating-loader {
@@ -347,8 +375,8 @@ function setupFilterLayout() {
 
 function applyProductCopy() {
   document.querySelector('.brand-mark')?.setAttribute('alt', 'Get 笔记 Markdown 导出工具图标');
-  document.querySelector('.brand-copy h1') && (document.querySelector('.brand-copy h1').textContent = '把你的 Get 笔记整理成 Markdown');
-  document.querySelector('.brand-copy p') && (document.querySelector('.brand-copy p').textContent = '按知识库筛选、搜索、预览，再把你要的内容导出下来。配置只保存在当前浏览器里。');
+  document.querySelector('.brand-copy h1') && (document.querySelector('.brand-copy h1').textContent = 'Get 笔记 Markdown 导出工具');
+  document.querySelector('.brand-copy p') && (document.querySelector('.brand-copy p').textContent = '同步、筛选、预览并导出你的 Get 笔记。');
 
   if (refreshBtn) refreshBtn.textContent = '同步我的笔记';
   if (openSettingsBtn) openSettingsBtn.textContent = '设置';
@@ -890,7 +918,7 @@ function updateLoadButtons() {
   }
 
   if (!allNotes.length) {
-    setInlineMeta('同步后会先出现首批结果，再继续补齐完整内容。');
+    setInlineMeta('同步后会先出现首批结果，再继续整理完整内容。');
     return;
   }
 
@@ -928,7 +956,7 @@ function renderKnowledgeBaseOptions() {
         </div>
       `;
       document.getElementById('retryKnowledgeBasesBtn')?.addEventListener('click', () => {
-        loadOwnedKnowledgeBases({ preserveExisting: false });
+        loadOwnedKnowledgeBases({ preserveExisting: false, surfaceErrorInStatus: false });
       });
       return;
     }
@@ -940,7 +968,7 @@ function renderKnowledgeBaseOptions() {
       </div>
     `;
     document.getElementById('syncKnowledgeBasesBtn')?.addEventListener('click', () => {
-      loadOwnedKnowledgeBases({ preserveExisting: false });
+      loadOwnedKnowledgeBases({ preserveExisting: false, surfaceErrorInStatus: false });
     });
     return;
   }
@@ -1028,15 +1056,15 @@ function renderActiveFilters() {
   const selectedKnowledgeBase = ownedKnowledgeBases.find(item => item.id === activeKnowledgeBaseId);
 
   if (keyword) {
-    parts.push(`<span class="mini-chip tag">搜索：${escapeHtml(keyword)}</span>`);
+    parts.push(renderActiveFilterChip('keyword', `搜索：${keyword}`, '', 'tag'));
   }
 
   if (selectedKnowledgeBase) {
-    parts.push(`<span class="mini-chip topic">我的知识库：${escapeHtml(selectedKnowledgeBase.name)}</span>`);
+    parts.push(renderActiveFilterChip('knowledge', `我的知识库：${selectedKnowledgeBase.name}`, activeKnowledgeBaseId, 'topic'));
   }
 
   activeTagFilters.forEach(tag => {
-    parts.push(`<span class="mini-chip tag">标签：${escapeHtml(tag)}</span>`);
+    parts.push(renderActiveFilterChip('tag', `标签：${tag}`, tag, 'tag'));
   });
 
   if (!parts.length) {
@@ -1047,6 +1075,55 @@ function renderActiveFilters() {
 
   filterElements.activeFilters.className = 'active-filters';
   filterElements.activeFilters.innerHTML = parts.join('');
+  filterElements.activeFilters.querySelectorAll('[data-filter-action]').forEach(button => {
+    button.addEventListener('click', () => {
+      removeActiveFilter(button.dataset.filterAction, button.dataset.filterValue || '');
+    });
+  });
+}
+
+function renderActiveFilterChip(action, label, value, variant) {
+  return `
+    <button
+      type="button"
+      class="mini-chip ${variant} active-filter-chip"
+      data-filter-action="${escapeHtml(action)}"
+      data-filter-value="${escapeHtml(value)}"
+      title="点击移除这个筛选"
+    >
+      <span>${escapeHtml(label)}</span>
+      <span class="chip-remove" aria-hidden="true">×</span>
+    </button>
+  `;
+}
+
+async function removeActiveFilter(action, value) {
+  selectedNotes.clear();
+
+  if (action === 'keyword') {
+    keyword = '';
+    if (searchInput) searchInput.value = '';
+    applyFilters();
+    return;
+  }
+
+  if (action === 'tag') {
+    activeTagFilters.delete(value);
+    applyFilters();
+    return;
+  }
+
+  if (action === 'knowledge') {
+    activeKnowledgeBaseId = '';
+
+    if (restoreAllScopeSnapshot()) {
+      applyFilters();
+      saveViewState();
+      return;
+    }
+
+    await refreshNotesForCurrentFilters();
+  }
 }
 
 function renderFilters() {
@@ -1124,7 +1201,7 @@ function renderNotes() {
           ${topics.length ? `<div class="note-scope-row">${topics.map(topic => `<span class="topic-badge">${escapeHtml(topic)}</span>`).join('')}</div>` : ''}
           <div class="note-summary">${escapeHtml(summary)}</div>
           <div class="tag-row">
-            ${tags.map(tag => `<button type="button" class="mini-chip tag note-tag-trigger" data-tag-value="${escapeHtml(tag)}">${escapeHtml(tag)}</button>`).join('')}
+            ${tags.map(tag => `<button type="button" class="mini-chip tag note-tag-trigger ${activeTagFilters.has(tag) ? 'is-active' : ''}" data-tag-value="${escapeHtml(tag)}" aria-label="只查看 ${escapeHtml(tag)} 标签下的笔记">${escapeHtml(tag)}</button>`).join('')}
           </div>
         </div>
         <div class="note-open">></div>
@@ -1152,7 +1229,9 @@ function renderNotes() {
     button.addEventListener('click', event => {
       event.stopPropagation();
       const tag = button.dataset.tagValue;
+      activeTagFilters.clear();
       activeTagFilters.add(tag);
+      selectedNotes.clear();
       applyFilters();
     });
   });
@@ -1523,7 +1602,8 @@ function getCurrentScopeName() {
 async function loadOwnedKnowledgeBases(options = {}) {
   const {
     silent = false,
-    preserveExisting = true
+    preserveExisting = true,
+    surfaceErrorInStatus = true
   } = options;
 
   if (!hasSavedConfig) {
@@ -1553,7 +1633,7 @@ async function loadOwnedKnowledgeBases(options = {}) {
     saveViewState();
   } catch (error) {
     knowledgeBaseSyncState = 'error';
-    if (!silent) {
+    if (!silent && surfaceErrorInStatus) {
       showStatus('这次没有同步到你的知识库，请稍后再试');
     }
   } finally {
@@ -1697,7 +1777,7 @@ async function continueLoadingCurrentFeed(options = {}) {
     saveViewState();
   } catch (error) {
     finishLoading();
-    showStatus(`继续加载失败: ${error.message}`);
+    showStatus(`同步更多内容失败: ${error.message}`);
     renderFilters();
   }
 }
@@ -1724,11 +1804,11 @@ async function loadAllRemainingForCurrentFeed() {
 
   const addedCount = Math.max(0, allNotes.length - initialCount);
   if (addedCount > 0) {
-    showStatus(`已补齐 ${addedCount} 条内容`, 'success');
+    showStatus(`已同步 ${addedCount} 条新内容`, 'success');
   } else {
     showStatus('当前已经是最新加载结果', 'info');
   }
-  finishLoading('补齐完成');
+  finishLoading('同步完成');
 }
 
 async function refreshNotesForCurrentFilters() {
@@ -1737,6 +1817,12 @@ async function refreshNotesForCurrentFilters() {
 }
 
 async function refreshNotes() {
+  if (!hasSavedConfig) {
+    showStatus('先完成设置，再同步你的笔记', 'info');
+    openSettings();
+    return;
+  }
+
   await loadOwnedKnowledgeBases({ preserveExisting: false });
   await refreshNotesForCurrentFilters();
   if (loadState.hasMore) {
@@ -1795,6 +1881,7 @@ function buildMarkdown(note, mode = 'original') {
   const title = note.title || '未标题笔记';
   const original = getOriginalContent(note);
   const ai = getAiContent(note);
+  const images = getNoteImages(note);
   const lines = [
     `# ${title}`,
     '',
@@ -1809,6 +1896,13 @@ function buildMarkdown(note, mode = 'original') {
     lines.push('## AI 总结', '', ai || '暂无 AI 总结', '');
   } else {
     lines.push('## 原文', '', original || '暂无原文', '');
+  }
+
+  if (images.length > 0) {
+    lines.push('## 图片', '');
+    images.forEach((image, index) => {
+      lines.push(`![${image.alt || `图片 ${index + 1}`}](${image.url})`, '');
+    });
   }
 
   return lines.join('\n');

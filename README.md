@@ -126,3 +126,7 @@
 - `Client ID`
 - Token
 - 本地配置文件
+
+## License
+
+本项目采用 [MIT License](LICENSE) 开源。
