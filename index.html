@@ -188,6 +188,25 @@
       margin-top: 30px;
     }
 
+    .trust-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 22px;
+    }
+
+    .trust-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 7px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(23, 32, 29, 0.10);
+      background: rgba(255, 254, 250, 0.62);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
     .opensource-note {
       max-width: 640px;
       margin-top: 18px;
@@ -319,14 +338,12 @@
 
     .steps {
       display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 12px;
       margin-top: 20px;
     }
 
     .step {
-      display: grid;
-      grid-template-columns: 42px minmax(0, 1fr);
-      gap: 14px;
       padding: 18px;
       border-radius: 18px;
       border: 1px solid var(--line);
@@ -348,6 +365,7 @@
       color: var(--muted);
       line-height: 1.75;
       margin-top: 4px;
+      font-size: 13px;
     }
 
     .final-cta {
@@ -377,7 +395,8 @@
 
     @media (max-width: 860px) {
       .hero,
-      .grid {
+      .grid,
+      .steps {
         grid-template-columns: 1fr;
       }
 
@@ -509,51 +528,60 @@
     <section class="hero">
       <div>
         <span class="eyebrow">Get Notes Export</span>
-        <h1>把 Get 笔记整理成 Markdown</h1>
-        <p class="lead">这是一个面向 Get 用户的本地化导出工具。它帮你按“我的知识库”、标签和关键词找到笔记，预览内容，再把原文或 AI 总结导出成 Markdown。</p>
+        <h1>把 Get 笔记带回你的写作流</h1>
+        <p class="lead">面向 Get 用户的本地优先导出工具。同步、筛选、预览，再把原文或 AI 总结导出为 Markdown，继续放进 Obsidian、Notion 或你的本地文件夹。</p>
         <div class="hero-actions">
           <a class="btn btn-primary" href="app.html">立即开始</a>
           <a class="btn btn-secondary" href="#features">查看功能</a>
+        </div>
+        <div class="trust-row" aria-label="产品边界">
+          <span class="trust-pill">本地浏览器处理</span>
+          <span class="trust-pill">MIT 开源</span>
+          <span class="trust-pill">支持图文笔记</span>
         </div>
         <p class="opensource-note">当前版本是 V0.1 开源测试版。如果你遇到问题，或想一起改进体验，欢迎到 GitHub <a href="https://github.com/Raymond-Hear/Getbiji2md/pulls" target="_blank" rel="noopener noreferrer">提 PR</a>。</p>
       </div>
 
       <aside class="preview" aria-label="工具能力预览">
         <div class="preview-head">
-          <div class="preview-title">工具流程</div>
+          <div class="preview-title">工作流</div>
           <div class="preview-pill">本地浏览器处理</div>
         </div>
         <div class="preview-list">
           <div class="preview-item">
             <div class="preview-icon">1</div>
-            <div><strong>连接你的 Get 笔记</strong><span>填入 API Key 和 Client ID，配置保存在当前浏览器。</span></div>
+            <div><strong>设置</strong><span>填入开放平台信息。</span></div>
           </div>
           <div class="preview-item">
             <div class="preview-icon">2</div>
-            <div><strong>筛选和预览内容</strong><span>按知识库、标签和关键词整理笔记范围。</span></div>
+            <div><strong>同步</strong><span>拉取你的笔记内容。</span></div>
           </div>
           <div class="preview-item">
             <div class="preview-icon">3</div>
-            <div><strong>导出 Markdown</strong><span>支持单篇和批量下载，图文笔记会保留图片链接。</span></div>
+            <div><strong>筛选</strong><span>按标签、关键词缩小范围。</span></div>
+          </div>
+          <div class="preview-item">
+            <div class="preview-icon">4</div>
+            <div><strong>导出</strong><span>下载原文或 AI 总结。</span></div>
           </div>
         </div>
       </aside>
     </section>
 
     <section id="features" class="section">
-      <h2>适合把大量笔记整理出来的人</h2>
+      <h2>更像一个可控的导出工作台</h2>
       <div class="grid">
         <article class="card">
-          <strong>按我的知识库筛选</strong>
-          <p>只聚焦你自己创建的知识库，不把订阅库或书本归属混进同一个筛选里。</p>
+          <strong>先同步，再筛选</strong>
+          <p>进入工具页后先同步内容，再按标签、关键词和本地已加载内容缩小范围。</p>
         </article>
         <article class="card">
-          <strong>搜索、预览、再下载</strong>
-          <p>先确认内容是否正确，再选择下载原文或 AI 总结，减少导错内容的麻烦。</p>
+          <strong>先预览，再下载</strong>
+          <p>打开单篇详情确认原文、AI 总结和图片，再决定下载哪一类 Markdown。</p>
         </article>
         <article class="card">
           <strong>刷新后恢复现场</strong>
-          <p>页面刷新后会恢复上次的筛选、结果和详情，不需要每次从头同步。</p>
+          <p>刷新页面后尽量恢复上次结果、筛选和详情，减少重复操作。</p>
         </article>
       </div>
     </section>
@@ -563,23 +591,27 @@
       <div class="steps">
         <div class="step">
           <div class="step-number">1</div>
-          <div><strong>进入工具页</strong><p>点击“立即开始”，打开真正的导出工具界面。</p></div>
+          <div><strong>设置</strong><p>填入 API Key 和 Client ID。</p></div>
         </div>
         <div class="step">
           <div class="step-number">2</div>
-          <div><strong>填入开放平台信息</strong><p>在设置里填入你的 API Key 和 Client ID。工具不会把这些信息上传到第三方服务器。</p></div>
+          <div><strong>同步</strong><p>点击同步我的笔记。</p></div>
         </div>
         <div class="step">
           <div class="step-number">3</div>
-          <div><strong>同步并导出</strong><p>同步笔记后，按知识库、标签或关键词筛选，选择需要的笔记并导出 Markdown。</p></div>
+          <div><strong>筛选</strong><p>按标签或关键词找到内容。</p></div>
+        </div>
+        <div class="step">
+          <div class="step-number">4</div>
+          <div><strong>导出</strong><p>下载原文或 AI 总结。</p></div>
         </div>
       </div>
     </section>
 
     <section class="final-cta">
       <div>
-        <h2>准备好整理你的 Get 笔记了吗？</h2>
-        <p>进入工具页后，先完成一次设置，就可以开始同步、预览和导出。</p>
+        <h2>准备把笔记带回自己手里了吗？</h2>
+        <p>进入工具页，完成设置后同步笔记，再选择需要的内容导出。</p>
       </div>
       <a class="btn btn-primary" href="app.html">立即开始</a>
     </section>
