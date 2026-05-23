@@ -67,6 +67,7 @@
 - 新增 GitHub Issue/PR 模板，帮助用户反馈问题时避免暴露敏感凭证。
 - 新增常见问题页，集中说明同步失败、429、知识库为空、图片导出和本地配置恢复。
 - 补齐正式域名的 canonical、Open Graph URL、robots.txt 和 sitemap.xml。
+- 补齐 Web App Manifest、theme-color、分享卡片图片和 Twitter card 元信息。
 
 ## 下一步待办
 
