@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Get2MD 隐私说明：了解 API Key、Client ID 和笔记内容如何在当前浏览器本地处理。">
+  <meta property="og:title" content="Get2MD 隐私说明">
+  <meta property="og:description" content="Get2MD 不做账号系统，不保存你的 API Key、Client ID 或笔记内容。">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/icon16.png">
+  <link rel="icon" type="image/png" sizes="48x48" href="icons/icon48.png">
+  <link rel="icon" type="image/png" sizes="128x128" href="icons/icon128.png">
+  <link rel="apple-touch-icon" href="icons/icon512.png">
+  <title>隐私说明｜Get2MD</title>
+  <style>
+    :root {
+      --paper: #f6f7f2;
+      --ink: #17201d;
+      --muted: #63716b;
+      --line: rgba(23, 32, 29, 0.12);
+      --brand: #26685f;
+      --brand-dark: #174c45;
+      --accent: #c46f3d;
+      --surface: rgba(255, 254, 250, 0.84);
+      --shadow: 0 22px 54px rgba(23, 32, 29, 0.09);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: "Avenir Next", "Segoe UI", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      color: var(--ink);
+      background:
+        linear-gradient(135deg, rgba(38, 104, 95, 0.13), transparent 34%),
+        linear-gradient(225deg, rgba(196, 111, 61, 0.11), transparent 30%),
+        linear-gradient(180deg, #fbfbf6 0%, var(--paper) 100%);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image: linear-gradient(rgba(23, 32, 29, 0.045) 1px, transparent 1px);
+      background-size: 100% 34px;
+      opacity: 0.55;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .page {
+      position: relative;
+      width: min(920px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 28px 0 64px;
+    }
+
+    .nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 44px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      font-weight: 850;
+    }
+
+    .brand img {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      box-shadow: 0 10px 26px rgba(23, 32, 29, 0.12);
+    }
+
+    .nav-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 0 18px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      text-decoration: none;
+      font-weight: 800;
+      font-size: 14px;
+      transition: transform 0.18s, box-shadow 0.18s, background 0.18s;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn-primary {
+      background: var(--brand);
+      color: #f7fffc;
+      box-shadow: 0 16px 32px rgba(38, 104, 95, 0.18);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 254, 250, 0.74);
+      color: var(--ink);
+    }
+
+    .hero {
+      padding: clamp(28px, 6vw, 54px);
+      border-radius: 28px;
+      background: var(--surface);
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      padding: 7px 11px;
+      border-radius: 999px;
+      background: rgba(38, 104, 95, 0.10);
+      color: var(--brand-dark);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      max-width: 760px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(38px, 7vw, 72px);
+      line-height: 0.98;
+      font-weight: 700;
+    }
+
+    .lead {
+      max-width: 720px;
+      margin-top: 20px;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.9;
+    }
+
+    .content {
+      display: grid;
+      gap: 14px;
+      margin-top: 22px;
+    }
+
+    .card {
+      padding: 22px;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      background: rgba(255, 254, 250, 0.72);
+    }
+
+    .card h2 {
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
+
+    .card p,
+    .card li {
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.85;
+    }
+
+    .card ul {
+      margin-left: 20px;
+    }
+
+    .note {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.8;
+    }
+
+    .note a {
+      color: var(--brand-dark);
+      font-weight: 850;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(23, 76, 69, 0.24);
+    }
+
+    @media (max-width: 640px) {
+      .nav {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .nav-actions,
+      .btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <nav class="nav" aria-label="隐私说明导航">
+      <a class="brand" href="index.html" aria-label="返回 Get2MD 首页">
+        <img src="icons/icon128.png" alt="">
+        <span>Get2MD</span>
+      </a>
+      <div class="nav-actions">
+        <a class="btn btn-secondary" href="index.html">返回介绍</a>
+        <a class="btn btn-primary" href="app.html">打开导出工具</a>
+      </div>
+    </nav>
+
+    <section class="hero">
+      <span class="eyebrow">Privacy</span>
+      <h1>你的笔记，留在你的浏览器里</h1>
+      <p class="lead">Get2MD 是本地优先的导出工具。它不做账号系统，不做数据库，也不会把你的 API Key、Client ID 或笔记内容保存到项目方服务器。</p>
+    </section>
+
+    <section class="content" aria-label="隐私说明内容">
+      <article class="card">
+        <h2>会保存什么？</h2>
+        <p>为了让你下次不用重新填写，工具会把 API Key 和 Client ID 保存在当前浏览器本地。你可以随时在工具页的“接口设置”里清除本地配置。</p>
+      </article>
+
+      <article class="card">
+        <h2>不会保存什么？</h2>
+        <ul>
+          <li>不会保存你的 Get 笔记账号。</li>
+          <li>不会把 API Key 和 Client ID 写进仓库文件。</li>
+          <li>不会把你的笔记内容上传到项目方数据库。</li>
+          <li>不会在不同设备之间同步你的配置。</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>使用时注意什么？</h2>
+        <p>API Key 是敏感信息。建议只在自己信任的设备和浏览器里使用，不要把真实凭证发给别人，也不要放进公开截图、教程或仓库。</p>
+      </article>
+    </section>
+
+    <p class="note">如果你想检查实现方式，可以查看 <a href="https://github.com/Raymond-Hear/Getbiji2md" target="_blank" rel="noopener noreferrer">GitHub 项目源码</a>。</p>
+  </main>
+  <script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>
