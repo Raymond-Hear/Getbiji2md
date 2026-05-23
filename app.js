@@ -1,6 +1,6 @@
 const API_BASE = 'https://openapi.biji.com/open/api/v1/resource';
 const IS_LOCAL_ENV = window.location.protocol === 'file:' || ['localhost', '127.0.0.1'].includes(window.location.hostname);
-const ENABLE_KNOWLEDGE_BASE_FILTER = IS_LOCAL_ENV;
+const ENABLE_KNOWLEDGE_BASE_FILTER = true;
 const STORAGE_KEYS = {
   apiKey: 'get-notes-api-key',
   clientId: 'get-notes-client-id',
@@ -19,6 +19,8 @@ const notesContainer = document.getElementById('notesContainer');
 const loadMoreContainer = document.getElementById('loadMoreContainer');
 const batchActions = document.getElementById('batchActions');
 const selectedCount = document.getElementById('selectedCount');
+const selectFilteredNotes = document.getElementById('selectFilteredNotes');
+const selectFilteredNotesLabel = document.getElementById('selectFilteredNotesLabel');
 const selectedCountHero = document.getElementById('selectedCountHero');
 const loadedCount = document.getElementById('loadedCount');
 const visibleCount = document.getElementById('visibleCount');
@@ -187,6 +189,21 @@ function injectEnhancementStyles() {
       line-height: 1;
       margin-right: 8px;
       margin-bottom: 8px;
+    }
+
+    button.topic-badge {
+      border: 0;
+      font: inherit;
+      cursor: pointer;
+      transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    button.topic-badge:hover,
+    button.topic-badge:focus-visible {
+      background: rgba(36, 106, 101, 0.14);
+      box-shadow: inset 0 0 0 1px rgba(36, 106, 101, 0.14);
+      transform: translateY(-1px);
+      outline: none;
     }
 
     .note-scope-row {
@@ -961,8 +978,17 @@ function getNoteId(note) {
   return String(note.note_id || note.id || '');
 }
 
+function getTopicEntries(note) {
+  return (note.topics || [])
+    .map(topic => normalizeKnowledgeBaseEntry(topic) || {
+      id: String(topic?.topic_id || topic?.id || topic?.value || '').trim(),
+      name: String(topic?.name || topic?.topic_name || topic?.label || '').trim()
+    })
+    .filter(topic => topic.name);
+}
+
 function getTopics(note) {
-  return (note.topics || []).map(topic => topic.name).filter(Boolean);
+  return getTopicEntries(note).map(topic => topic.name);
 }
 
 function getTags(note) {
@@ -1158,6 +1184,25 @@ function updateBatchActions() {
   selectedCount.textContent = String(count);
   selectedCountHero.textContent = String(count);
   batchActions.style.display = count > 0 ? 'flex' : 'none';
+  updateSelectFilteredControl();
+}
+
+function updateSelectFilteredControl() {
+  if (!selectFilteredNotes) return;
+
+  const selectableIds = filteredNotes.map(getNoteId).filter(Boolean);
+  const selectedInCurrentResults = selectableIds.filter(noteId => selectedNotes.has(noteId)).length;
+  const hasResults = selectableIds.length > 0;
+
+  selectFilteredNotes.disabled = !hasResults;
+  selectFilteredNotes.checked = hasResults && selectedInCurrentResults === selectableIds.length;
+  selectFilteredNotes.indeterminate = hasResults && selectedInCurrentResults > 0 && selectedInCurrentResults < selectableIds.length;
+
+  if (selectFilteredNotesLabel) {
+    selectFilteredNotesLabel.textContent = selectedInCurrentResults > 0
+      ? `已选 ${selectedInCurrentResults}/${selectableIds.length}`
+      : '选择当前结果';
+  }
 }
 
 function updateStats() {
@@ -1471,7 +1516,7 @@ function renderNotes() {
   notesContainer.innerHTML = filteredNotes.map(note => {
     const noteId = getNoteId(note);
     const tags = getTags(note);
-    const topics = getTopics(note);
+    const topicEntries = getTopicEntries(note);
     const summary = getOriginalContent(note) || '暂无摘要内容';
     const isSelected = selectedNotes.has(noteId);
 
@@ -1488,7 +1533,7 @@ function renderNotes() {
           <div class="note-meta">
             <span class="note-type">${escapeHtml(note.note_type || 'text')}</span>
           </div>
-          ${topics.length ? `<div class="note-scope-row">${topics.map(topic => `<span class="topic-badge">${escapeHtml(topic)}</span>`).join('')}</div>` : ''}
+          ${topicEntries.length ? `<div class="note-scope-row">${topicEntries.map(topic => `<button type="button" class="topic-badge note-topic-trigger" data-topic-id="${escapeHtml(topic.id || '')}" data-topic-name="${escapeHtml(topic.name)}" aria-label="筛选 ${escapeHtml(topic.name)}">${escapeHtml(topic.name)}</button>`).join('')}</div>` : ''}
           <div class="note-summary">${escapeHtml(summary)}</div>
           <div class="tag-row">
             ${tags.map(tag => `<button type="button" class="mini-chip tag note-tag-trigger ${activeTagFilters.has(tag) ? 'is-active' : ''}" data-tag-value="${escapeHtml(tag)}" aria-label="只查看 ${escapeHtml(tag)} 标签下的笔记">${escapeHtml(tag)}</button>`).join('')}
@@ -1501,7 +1546,7 @@ function renderNotes() {
 
   notesContainer.querySelectorAll('.note-item').forEach(item => {
     item.addEventListener('click', event => {
-      if (event.target.closest('.note-check') || event.target.closest('.note-tag-trigger')) {
+      if (event.target.closest('.note-check') || event.target.closest('.note-tag-trigger') || event.target.closest('.note-topic-trigger')) {
         return;
       }
       openNoteDetail(item.dataset.noteId);
@@ -1526,8 +1571,54 @@ function renderNotes() {
     });
   });
 
+  notesContainer.querySelectorAll('.note-topic-trigger').forEach(button => {
+    button.addEventListener('click', event => {
+      event.stopPropagation();
+      filterByTopic(button.dataset.topicId || '', button.dataset.topicName || '');
+    });
+  });
+
   updateStats();
   updateResultsMeta();
+}
+
+async function filterByTopic(topicId, topicName) {
+  const normalizedName = String(topicName || '').trim().toLowerCase();
+  let matchedKnowledgeBase = ownedKnowledgeBases.find(item => (
+    (topicId && item.id === topicId)
+    || (normalizedName && item.name.toLowerCase() === normalizedName)
+  ));
+
+  if (!matchedKnowledgeBase && hasSavedConfig && knowledgeBaseSyncState !== 'loading') {
+    await loadOwnedKnowledgeBases({ silent: true, preserveExisting: true, surfaceErrorInStatus: false });
+    matchedKnowledgeBase = ownedKnowledgeBases.find(item => (
+      (topicId && item.id === topicId)
+      || (normalizedName && item.name.toLowerCase() === normalizedName)
+    ));
+  }
+
+  const nextId = matchedKnowledgeBase?.id || topicId;
+  if (!nextId) {
+    showStatus('这个知识库暂时没有可用的筛选信息，请先同步一次我的知识库。', 'info');
+    return;
+  }
+
+  if (!matchedKnowledgeBase && topicName) {
+    ownedKnowledgeBases = dedupeKnowledgeBases([
+      ...ownedKnowledgeBases,
+      { id: nextId, name: topicName }
+    ]);
+  }
+
+  if (nextId === activeKnowledgeBaseId) {
+    showStatus(`已在查看：${matchedKnowledgeBase?.name || topicName || '当前知识库'}`, 'info');
+    return;
+  }
+
+  activeKnowledgeBaseId = nextId;
+  selectedNotes.clear();
+  await refreshNotesForCurrentFilters();
+  showStatus(`已筛选：${matchedKnowledgeBase?.name || topicName || '当前知识库'}`, 'success');
 }
 
 function applyFilters() {
@@ -2492,6 +2583,21 @@ function bindEvents() {
   batchDownloadAiBtn?.addEventListener('click', event => {
     event.preventDefault();
     batchDownload('ai');
+  });
+  selectFilteredNotes?.addEventListener('change', () => {
+    const shouldSelect = selectFilteredNotes.checked;
+    filteredNotes.forEach(note => {
+      const noteId = getNoteId(note);
+      if (!noteId) return;
+      if (shouldSelect) {
+        selectedNotes.add(noteId);
+      } else {
+        selectedNotes.delete(noteId);
+      }
+    });
+    updateBatchActions();
+    renderNotes();
+    saveViewState();
   });
   searchBtn?.addEventListener('click', runKeywordSearch);
   clearSearchBtn?.addEventListener('click', () => {

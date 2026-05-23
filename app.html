@@ -599,6 +599,45 @@
       margin-bottom: 14px;
     }
 
+    .results-heading {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      min-width: 0;
+    }
+
+    .results-title {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .select-current-filter {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      padding: 8px 11px;
+      border-radius: 999px;
+      border: 1px solid rgba(36, 106, 101, 0.16);
+      background: rgba(36, 106, 101, 0.06);
+      color: var(--teal);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .select-current-filter input {
+      width: 15px;
+      height: 15px;
+      accent-color: var(--teal);
+    }
+
+    .select-current-filter:has(input:disabled) {
+      opacity: 0.48;
+      cursor: not-allowed;
+    }
+
     .results-meta {
       color: var(--muted);
       font-size: 13px;
@@ -1520,8 +1559,14 @@
 
           <section class="panel results-panel">
             <div class="results-toolbar">
-              <div>
-                <h2 style="font-size: 18px;">笔记列表</h2>
+              <div class="results-heading">
+                <div>
+                  <h2 class="results-title">笔记列表</h2>
+                  <label class="select-current-filter">
+                    <input id="selectFilteredNotes" type="checkbox">
+                    <span id="selectFilteredNotesLabel">选择当前结果</span>
+                  </label>
+                </div>
                 <div class="results-meta" id="resultsMeta">还没有加载笔记</div>
               </div>
               <div id="batchActions" class="batch-actions" style="display: none;">
@@ -1627,5 +1672,6 @@
   </div>
 
   <script src="app.js"></script>
+  <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
