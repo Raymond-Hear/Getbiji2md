@@ -505,7 +505,7 @@ function applyProductCopy() {
   if (heroNote) heroNote.textContent = '你的 API Key 和笔记内容只保存在当前浏览器。';
 
   if (refreshBtn) refreshBtn.textContent = '同步我的笔记';
-  if (openSettingsBtn) openSettingsBtn.textContent = '设置';
+  if (openSettingsBtn) openSettingsBtn.textContent = '接口设置';
 
   const statLabels = document.querySelectorAll('.stat-label');
   if (statLabels[0]) statLabels[0].textContent = '已整理笔记';
@@ -588,7 +588,7 @@ function applyEnvironmentCopy() {
   }
 
   if (filterElements.filterInlineMeta) {
-    filterElements.filterInlineMeta.textContent = '完成设置后，点击右上角“同步我的笔记”开始加载内容。';
+    filterElements.filterInlineMeta.textContent = '完成设置后，点击“同步我的笔记”开始加载内容。';
   }
 }
 
@@ -814,7 +814,7 @@ function ensureSyncGuide() {
   guide.innerHTML = `
     <div class="sync-guide-eyebrow">Next Step</div>
     <div class="sync-guide-title">点这里同步你的笔记</div>
-    <div class="sync-guide-copy">刚完成设置后，还需要点一下右上角的“同步我的笔记”。第一次同步完成后，你就可以继续筛选、预览和导出了。</div>
+    <div class="sync-guide-copy">刚完成设置后，还需要点一下“同步我的笔记”。第一次同步完成后，你就可以继续筛选、预览和导出了。</div>
     <div class="sync-guide-actions">
       <button id="syncGuideGoBtn" class="btn btn-primary" type="button">现在去同步</button>
       <button id="syncGuideDismissBtn" class="btn btn-secondary" type="button">我知道了</button>
@@ -1231,7 +1231,7 @@ function updateStats() {
 
 function updateSettingsButtonLabel() {
   if (!openSettingsBtn) return;
-  openSettingsBtn.textContent = hasSavedConfig ? '设置' : '开始设置';
+  openSettingsBtn.textContent = hasSavedConfig ? '接口设置' : '开始设置';
 }
 
 function updateClearConfigVisibility() {
@@ -2568,7 +2568,7 @@ async function saveConfig() {
       handler: refreshNotes
     }
   ]);
-  showStatus('配置已保存。下一步请点击右上角“同步我的笔记”。', 'success');
+  showStatus('配置已保存。下一步请点击“同步我的笔记”。', 'success');
   showSyncGuide();
   saveViewState();
 }
@@ -2755,7 +2755,7 @@ bindEvents();
           handler: refreshNotes
         }
       ]);
-      showStatus('点击右上角“同步我的笔记”开始首次同步。', 'info');
+      showStatus('点击“同步我的笔记”开始首次同步。', 'info');
       showSyncGuide();
     }
   } else {
