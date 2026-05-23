@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Get2MD 隐私说明：了解 API Key、Client ID 和笔记内容如何在当前浏览器本地处理。">
-  <meta property="og:title" content="Get2MD 隐私说明">
-  <meta property="og:description" content="Get2MD 不做账号系统，不保存你的 API Key、Client ID 或笔记内容。">
+  <meta name="description" content="Get2MD 常见问题：同步失败、429、知识库筛选、图片导出和本地配置说明。">
+  <meta property="og:title" content="Get2MD 常见问题">
+  <meta property="og:description" content="遇到同步、筛选、导出或配置问题时，先看这份简短自查说明。">
   <meta property="og:type" content="website">
   <link rel="icon" type="image/png" sizes="16x16" href="icons/icon16.png">
   <link rel="icon" type="image/png" sizes="48x48" href="icons/icon48.png">
   <link rel="icon" type="image/png" sizes="128x128" href="icons/icon128.png">
   <link rel="apple-touch-icon" href="icons/icon512.png">
-  <title>隐私说明｜Get2MD</title>
+  <title>常见问题｜Get2MD</title>
   <style>
     :root {
       --paper: #f6f7f2;
@@ -57,7 +57,7 @@
 
     .page {
       position: relative;
-      width: min(920px, calc(100vw - 32px));
+      width: min(980px, calc(100vw - 32px));
       margin: 0 auto;
       padding: 28px 0 64px;
     }
@@ -102,11 +102,6 @@
       text-decoration: none;
       font-weight: 800;
       font-size: 14px;
-      transition: transform 0.18s, box-shadow 0.18s, background 0.18s;
-    }
-
-    .btn:hover {
-      transform: translateY(-1px);
     }
 
     .btn-primary {
@@ -159,8 +154,9 @@
       line-height: 1.9;
     }
 
-    .content {
+    .faq {
       display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 14px;
       margin-top: 22px;
     }
@@ -173,7 +169,7 @@
     }
 
     .card h2 {
-      font-size: 20px;
+      font-size: 19px;
       margin-bottom: 10px;
     }
 
@@ -202,7 +198,11 @@
       border-bottom: 1px solid rgba(23, 76, 69, 0.24);
     }
 
-    @media (max-width: 640px) {
+    @media (max-width: 760px) {
+      .faq {
+        grid-template-columns: 1fr;
+      }
+
       .nav {
         align-items: flex-start;
         flex-direction: column;
@@ -217,47 +217,61 @@
 </head>
 <body>
   <main class="page">
-    <nav class="nav" aria-label="隐私说明导航">
+    <nav class="nav" aria-label="常见问题导航">
       <a class="brand" href="index.html" aria-label="返回 Get2MD 首页">
         <img src="icons/icon128.png" alt="">
         <span>Get2MD</span>
       </a>
       <div class="nav-actions">
         <a class="btn btn-secondary" href="index.html">返回介绍</a>
-        <a class="btn btn-secondary" href="help.html">常见问题</a>
+        <a class="btn btn-secondary" href="privacy.html">隐私说明</a>
         <a class="btn btn-primary" href="app.html">打开导出工具</a>
       </div>
     </nav>
 
     <section class="hero">
-      <span class="eyebrow">Privacy</span>
-      <h1>你的笔记，留在你的浏览器里</h1>
-      <p class="lead">Get2MD 是本地优先的导出工具。它不做账号系统，不做数据库，也不会把你的 API Key、Client ID 或笔记内容保存到项目方服务器。</p>
+      <span class="eyebrow">Help</span>
+      <h1>遇到问题，先从这里排查</h1>
+      <p class="lead">这份说明只保留用户真正会遇到的几类问题：同步、限流、知识库筛选、图片导出和本地配置。</p>
     </section>
 
-    <section class="content" aria-label="隐私说明内容">
+    <section class="faq" aria-label="常见问题列表">
       <article class="card">
-        <h2>会保存什么？</h2>
-        <p>为了让你下次不用重新填写，工具会把 API Key 和 Client ID 保存在当前浏览器本地。你可以随时在工具页的“接口设置”里清除本地配置。</p>
-      </article>
-
-      <article class="card">
-        <h2>不会保存什么？</h2>
+        <h2>同步失败怎么办？</h2>
         <ul>
-          <li>不会保存你的 Get 笔记账号。</li>
-          <li>不会把 API Key 和 Client ID 写进仓库文件。</li>
-          <li>不会把你的笔记内容上传到项目方数据库。</li>
-          <li>不会在不同设备之间同步你的配置。</li>
+          <li>确认你已经填写 API Key 和 Client ID。</li>
+          <li>确认当前 Get 账号有开放平台能力和会员权限。</li>
+          <li>如果刚刚失败，可以等一会儿再点“同步我的笔记”。</li>
         </ul>
       </article>
 
       <article class="card">
-        <h2>使用时注意什么？</h2>
-        <p>API Key 是敏感信息。建议只在自己信任的设备和浏览器里使用，不要把真实凭证发给别人，也不要放进公开截图、教程或仓库。</p>
+        <h2>看到 429 是什么？</h2>
+        <p>429 通常表示请求过快。工具会尽量自动重试，你也可以稍等一会儿再继续同步或导出。</p>
+      </article>
+
+      <article class="card">
+        <h2>为什么“我的知识库”是空的？</h2>
+        <p>请先同步一次笔记和知识库。如果仍然为空，可能是开放平台暂时没有返回你的个人知识库列表，笔记列表仍可以按标签和关键词筛选。</p>
+      </article>
+
+      <article class="card">
+        <h2>图片会一起导出吗？</h2>
+        <p>详情页会展示图文笔记里的图片预览。导出 Markdown 时会尽量保留图片链接，方便你后续整理。</p>
+      </article>
+
+      <article class="card">
+        <h2>刷新页面后还要重新加载吗？</h2>
+        <p>工具会尽量恢复上次加载结果、筛选、选中项和详情。清理浏览器数据后，需要重新填写接口设置。</p>
+      </article>
+
+      <article class="card">
+        <h2>问题还是没解决？</h2>
+        <p>可以到 GitHub 反馈问题。请描述你正在做什么、看到什么提示、使用什么浏览器；不要贴真实 API Key、Client ID 或 Token。</p>
       </article>
     </section>
 
-    <p class="note">如果你想检查实现方式，可以查看 <a href="https://github.com/Raymond-Hear/Getbiji2md" target="_blank" rel="noopener noreferrer">GitHub 项目源码</a>。如果发现隐私说明不清楚，也欢迎到 GitHub <a href="https://github.com/Raymond-Hear/Getbiji2md/issues" target="_blank" rel="noopener noreferrer">反馈问题</a>。</p>
+    <p class="note">如果需要提交问题，请使用 <a href="https://github.com/Raymond-Hear/Getbiji2md/issues" target="_blank" rel="noopener noreferrer">GitHub Issue</a>。</p>
   </main>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
