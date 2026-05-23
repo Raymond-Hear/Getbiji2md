@@ -365,6 +365,14 @@
       transform: translateY(-1px);
     }
 
+    .btn:disabled,
+    .btn[aria-disabled="true"] {
+      cursor: not-allowed;
+      opacity: 0.52;
+      transform: none;
+      box-shadow: none;
+    }
+
     .btn-primary {
       background: linear-gradient(135deg, var(--brand), var(--brand-strong));
       color: #fff7ef;
@@ -832,22 +840,80 @@
       display: block;
     }
 
-    .detail-actions {
+    .detail-kicker {
       display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .detail-label {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(38, 104, 95, 0.10);
+      color: var(--teal);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .detail-export-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .detail-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 10px;
-      margin-top: 18px;
+      margin-top: 16px;
       margin-bottom: 20px;
     }
 
+    .detail-actions .btn {
+      width: 100%;
+    }
+
     .detail-title {
-      margin-top: 16px;
       font-size: 24px;
       line-height: 1.28;
       font-family: "Georgia", "Times New Roman", serif;
     }
 
     .detail-meta {
-      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .detail-meta-chip {
+      display: inline-flex;
+      align-items: center;
+      max-width: 100%;
+      padding: 6px 9px;
+      border-radius: 999px;
+      background: rgba(255, 254, 250, 0.68);
+      border: 1px solid rgba(23, 32, 29, 0.08);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.3;
+    }
+
+    .detail-empty-hint {
+      margin-top: 16px;
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(38, 104, 95, 0.08);
       color: var(--muted);
       font-size: 13px;
       line-height: 1.7;
@@ -880,6 +946,10 @@
       word-break: break-word;
       line-height: 1.75;
       font-size: 14px;
+    }
+
+    .note-detail .content-box {
+      max-height: 360px;
     }
 
     .content-box.empty {
@@ -1474,10 +1544,15 @@
         </div>
 
         <aside id="detailView" class="note-detail">
-          <button id="backBtn" class="btn btn-ghost back-btn">返回列表</button>
-          <h2 class="detail-title" id="detailTitle">点击左侧任意笔记查看详情</h2>
+          <div class="detail-kicker">
+            <span class="detail-label">Preview</span>
+            <button id="backBtn" class="btn btn-ghost back-btn">返回列表</button>
+          </div>
+          <h2 class="detail-title" id="detailTitle">选择一条笔记开始预览</h2>
           <div class="detail-meta" id="detailMeta">这里会显示类型、日期、知识库和标签。</div>
+          <div id="detailEmptyHint" class="detail-empty-hint">先从左侧笔记列表打开一条内容，再选择下载原文或 AI 总结。</div>
 
+          <div class="detail-export-label">导出这条笔记</div>
           <div class="detail-actions">
             <button id="downloadOriginalBtn" class="btn btn-primary">下载原文</button>
             <button id="downloadAiBtn" class="btn btn-accent">下载 AI 总结</button>

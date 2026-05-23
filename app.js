@@ -45,6 +45,7 @@ const clearFiltersBtn = document.getElementById('clearFiltersBtn');
 const resultsMeta = document.getElementById('resultsMeta');
 const detailTitle = document.getElementById('detailTitle');
 const detailMeta = document.getElementById('detailMeta');
+const detailEmptyHint = document.getElementById('detailEmptyHint');
 const originalContent = document.getElementById('originalContent');
 const aiContent = document.getElementById('aiContent');
 
@@ -1549,13 +1550,31 @@ function toggleSelection(noteId, checked) {
 }
 
 function fillDetailPlaceholder() {
-  detailTitle.textContent = '点击左侧任意笔记查看详情';
-  detailMeta.textContent = '这里会显示类型、日期、当前筛选范围和标签。';
+  currentNoteId = null;
+  detailTitle.textContent = '选择一条笔记开始预览';
+  detailMeta.innerHTML = renderDetailMetaChips(['原文', 'AI 总结', '图片']);
+  if (detailEmptyHint) detailEmptyHint.style.display = 'block';
+  setDetailActionsEnabled(false);
   ensureDetailMediaContainer().innerHTML = '';
   originalContent.textContent = '打开一条笔记后，这里会显示原文。';
   originalContent.classList.add('empty');
   aiContent.textContent = '如果这条笔记有 AI 总结，这里会显示对应内容。';
   aiContent.classList.add('empty');
+}
+
+function setDetailActionsEnabled(enabled) {
+  [downloadOriginalBtn, downloadAiBtn].forEach(button => {
+    if (!button) return;
+    button.disabled = !enabled;
+    button.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+  });
+}
+
+function renderDetailMetaChips(items) {
+  return items
+    .filter(Boolean)
+    .map(item => `<span class="detail-meta-chip">${escapeHtml(item)}</span>`)
+    .join('');
 }
 
 function ensureDetailMediaContainer() {
@@ -1578,13 +1597,16 @@ function renderNoteDetail(note) {
     : '全部笔记';
 
   detailTitle.textContent = note.title || '未标题笔记';
-  detailMeta.textContent = [
-    note.note_type || 'text',
-    getNoteDate(note),
-    `当前筛选：${currentKnowledgeBase}`,
+  detailMeta.innerHTML = renderDetailMetaChips([
+    `类型：${note.note_type || 'text'}`,
+    getNoteDate(note) ? `日期：${getNoteDate(note)}` : '',
+    `范围：${currentKnowledgeBase}`,
     topics.length ? `归属：${topics.join(' / ')}` : '',
-    tags.length ? `标签：${tags.join(' / ')}` : ''
-  ].filter(Boolean).join(' · ');
+    tags.length ? `标签：${tags.join(' / ')}` : '',
+    images.length ? `${images.length} 张图片` : ''
+  ]);
+  if (detailEmptyHint) detailEmptyHint.style.display = 'none';
+  setDetailActionsEnabled(true);
 
   const original = getOriginalContent(note) || '暂无原文';
   const ai = getAiContent(note) || '暂无 AI 总结';
