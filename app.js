@@ -734,19 +734,37 @@ function formatLoaderProgress() {
   return `已加载 ${allNotes.length} 条`;
 }
 
-function showEmpty(title, hint) {
-  const showAction = !hasSavedConfig;
+function showEmpty(title, hint, actions = []) {
+  const effectiveActions = actions.length > 0
+    ? actions
+    : (!hasSavedConfig ? [{
+      id: 'settings',
+      label: '开始设置',
+      variant: 'primary',
+      handler: openSettings
+    }] : []);
+
   notesContainer.innerHTML = `
     <div class="empty-state">
       <h3>${escapeHtml(title)}</h3>
       <p>${escapeHtml(hint)}</p>
-      ${showAction ? '<button id="emptyStateSettingsBtn" class="btn btn-primary" style="margin-top: 16px;">开始设置</button>' : ''}
+      ${effectiveActions.length ? `
+        <div class="empty-actions">
+          ${effectiveActions.map(action => `
+            <button
+              id="emptyAction_${escapeHtml(action.id)}"
+              class="btn btn-${escapeHtml(action.variant || 'secondary')}"
+              type="button"
+            >${escapeHtml(action.label)}</button>
+          `).join('')}
+        </div>
+      ` : ''}
     </div>
   `;
 
-  if (showAction) {
-    document.getElementById('emptyStateSettingsBtn')?.addEventListener('click', openSettings);
-  }
+  effectiveActions.forEach(action => {
+    document.getElementById(`emptyAction_${action.id}`)?.addEventListener('click', action.handler);
+  });
 }
 
 function escapeHtml(text) {
@@ -1503,10 +1521,31 @@ function renderNotes() {
     if (allNotes.length === 0) {
       showEmpty(
         hasSavedConfig ? '还没有结果' : '先完成接口设置',
-        hasSavedConfig ? '当前范围还没有加载到笔记，或者知识库里暂时没有内容。' : '第一次使用时先保存 API Key 和 Client ID。'
+        hasSavedConfig ? '当前范围还没有加载到笔记，或者知识库里暂时没有内容。' : '第一次使用时先保存 API Key 和 Client ID。',
+        hasSavedConfig ? [
+          {
+            id: 'sync',
+            label: '重新同步',
+            variant: 'primary',
+            handler: refreshNotes
+          },
+          ...(activeKnowledgeBaseId ? [{
+            id: 'allNotes',
+            label: '查看全部笔记',
+            variant: 'secondary',
+            handler: () => removeActiveFilter('knowledge', activeKnowledgeBaseId)
+          }] : [])
+        ] : []
       );
     } else {
-      showEmpty('没有匹配结果', '换一个关键词，或者清空当前筛选条件。');
+      showEmpty('没有匹配结果', '换一个关键词，或者清空当前筛选条件。', [
+        {
+          id: 'clearFilters',
+          label: '清空筛选',
+          variant: 'primary',
+          handler: resetFilters
+        }
+      ]);
     }
     updateStats();
     updateResultsMeta();
@@ -2119,9 +2158,27 @@ async function loadInitialNotesForCurrentScope() {
     showStatus(`加载失败: ${error.message}`);
     const title = activeKnowledgeBaseId ? '我的知识库加载失败' : '加载失败';
     const hint = activeKnowledgeBaseId
-      ? '这个知识库的内容暂时没有加载出来，请稍后再试。'
-      : '内容暂时没有加载出来，请稍后再试。';
-    showEmpty(title, hint);
+      ? '这个知识库的内容暂时没有加载出来，可以重试一次，或者先回到全部笔记。'
+      : '内容暂时没有加载出来，可以重试一次。如果连续失败，再检查 Get 笔记会员权限和开放平台凭证。';
+    showEmpty(title, hint, [
+      {
+        id: 'retrySync',
+        label: '重试同步',
+        variant: 'primary',
+        handler: refreshNotes
+      },
+      ...(activeKnowledgeBaseId ? [{
+        id: 'allNotes',
+        label: '查看全部笔记',
+        variant: 'secondary',
+        handler: () => removeActiveFilter('knowledge', activeKnowledgeBaseId)
+      }] : [{
+        id: 'settings',
+        label: '检查设置',
+        variant: 'secondary',
+        handler: openSettings
+      }])
+    ]);
     renderFilters();
   }
 }
@@ -2503,7 +2560,14 @@ async function saveConfig() {
   updateClearConfigVisibility();
 
   closeSettings();
-  showEmpty('下一步是同步笔记', '点右上角“同步我的笔记”后，这里就会开始出现内容。');
+  showEmpty('下一步是同步笔记', '点“同步我的笔记”后，这里就会开始出现内容。', [
+    {
+      id: 'syncAfterSave',
+      label: '同步我的笔记',
+      variant: 'primary',
+      handler: refreshNotes
+    }
+  ]);
   showStatus('配置已保存。下一步请点击右上角“同步我的笔记”。', 'success');
   showSyncGuide();
   saveViewState();
@@ -2683,12 +2747,26 @@ bindEvents();
         knowledgeBaseSyncState = 'ready';
       }
     } else {
-      showEmpty('先同步一次笔记', '完成设置后，点击右上角“同步我的笔记”，就能开始筛选、预览和导出。');
+      showEmpty('先同步一次笔记', '完成设置后，点击“同步我的笔记”，就能开始筛选、预览和导出。', [
+        {
+          id: 'firstSync',
+          label: '同步我的笔记',
+          variant: 'primary',
+          handler: refreshNotes
+        }
+      ]);
       showStatus('点击右上角“同步我的笔记”开始首次同步。', 'info');
       showSyncGuide();
     }
   } else {
-    showEmpty('先完成接口设置', '先保存 API Key 和 Client ID，然后就可以开始查看内容。');
+    showEmpty('先完成接口设置', '先保存 API Key 和 Client ID，然后就可以开始查看内容。', [
+      {
+        id: 'settings',
+        label: '开始设置',
+        variant: 'primary',
+        handler: openSettings
+      }
+    ]);
     openSettings();
   }
 })();
