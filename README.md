@@ -107,6 +107,10 @@
 如果你只下载一篇，它会直接给你一个 `.md` 文件。  
 如果你一次选了多篇，它会自动打成一个 `.zip` 压缩包，里面每条笔记都会对应一个独立的 Markdown 文件。
 
+## 反馈问题和参与改进
+
+当前版本是 V0.1 开源测试版。如果你遇到问题，可以在 GitHub [提交 Issue](https://github.com/Raymond-Hear/Getbiji2md/issues)；如果你想直接改进功能或体验，也欢迎 [提交 PR](https://github.com/Raymond-Hear/Getbiji2md/pulls)。
+
 ## 它最适合这些场景
 
 - 你想把 Get 笔记里的原文长期留在自己手里
