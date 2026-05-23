@@ -111,6 +111,8 @@
 
 当前版本是 V0.1 开源测试版。如果你遇到问题，可以在 GitHub [提交 Issue](https://github.com/Raymond-Hear/Getbiji2md/issues)；如果你想直接改进功能或体验，也欢迎 [提交 PR](https://github.com/Raymond-Hear/Getbiji2md/pulls)。
 
+反馈时请不要贴真实 API Key、Client ID、Token 或完整笔记内容。页面错误提示、浏览器、设备和你正在做的操作，一般就足够定位问题。
+
 ## 它最适合这些场景
 
 - 你想把 Get 笔记里的原文长期留在自己手里

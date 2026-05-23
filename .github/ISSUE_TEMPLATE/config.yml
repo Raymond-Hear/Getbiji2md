@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 查看隐私说明
+    url: https://github.com/Raymond-Hear/Getbiji2md/blob/main/privacy.html
+    about: 了解 API Key、Client ID 和笔记内容的本地处理边界。
