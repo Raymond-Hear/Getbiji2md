@@ -3,32 +3,42 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Get2MD 是一个本地优先的 Get 笔记 Markdown 导出工具，可同步、筛选、预览并导出原文或 AI 总结。">
+  <meta name="description" content="Get2MD 是一个本地优先的 Get 笔记 Markdown 导出工具，支持同步、筛选、预览和导出。">
   <meta property="og:title" content="Get2MD｜Get 笔记 Markdown 导出工具">
-  <meta property="og:description" content="把 Get 笔记带回你的写作流，本地浏览器处理，支持筛选、预览和批量导出。">
+  <meta property="og:description" content="把 Get 笔记带回你的写作流。本地浏览器处理，支持筛选、预览和 Markdown 导出。">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://get2md.lingfengraymond.top/">
   <meta property="og:image" content="https://get2md.lingfengraymond.top/icons/icon512.png">
   <meta name="twitter:card" content="summary">
-  <meta name="theme-color" content="#26685f">
+  <meta name="theme-color" content="#131718">
   <link rel="canonical" href="https://get2md.lingfengraymond.top/">
   <link rel="manifest" href="site.webmanifest">
   <link rel="icon" type="image/png" sizes="16x16" href="icons/icon16.png">
   <link rel="icon" type="image/png" sizes="48x48" href="icons/icon48.png">
   <link rel="icon" type="image/png" sizes="128x128" href="icons/icon128.png">
   <link rel="apple-touch-icon" href="icons/icon512.png">
-  <title>Get 笔记 Markdown 导出工具</title>
+  <title>Get2MD｜Get 笔记 Markdown 导出工具</title>
   <style>
     :root {
-      --paper: #faf7f1;
-      --ink: #201913;
-      --muted: #6f6254;
-      --line: rgba(32, 25, 19, 0.12);
-      --brand: #246a65;
-      --brand-dark: #184f4b;
-      --accent: #a35a24;
-      --surface: rgba(255, 255, 255, 0.68);
-      --shadow: 0 24px 60px rgba(47, 34, 22, 0.10);
+      --bg: #131718;
+      --bg-soft: #1b2022;
+      --panel: rgba(255, 255, 255, 0.05);
+      --panel-strong: rgba(255, 255, 255, 0.08);
+      --line: rgba(255, 255, 255, 0.12);
+      --text: #edf0eb;
+      --muted: #a7b0aa;
+      --paper: #f3f1ec;
+      --paper-line: rgba(19, 23, 24, 0.1);
+      --paper-text: #17201d;
+      --paper-muted: #65716b;
+      --brand: #2e8f81;
+      --brand-deep: #1f6d62;
+      --accent: #f08a39;
+      --accent-soft: #ffb16d;
+      --shadow-dark: 0 24px 64px rgba(0, 0, 0, 0.34);
+      --shadow-light: 0 18px 44px rgba(15, 18, 20, 0.08);
+      --radius: 8px;
+      --container: min(1180px, calc(100vw - 40px));
     }
 
     * {
@@ -44,29 +54,60 @@
     body {
       min-height: 100vh;
       font-family: "Segoe UI", "PingFang SC", "Hiragino Sans GB", sans-serif;
-      color: var(--ink);
+      color: var(--text);
       background:
-        linear-gradient(135deg, rgba(36, 106, 101, 0.12), transparent 32%),
-        linear-gradient(225deg, rgba(163, 90, 36, 0.10), transparent 28%),
-        var(--paper);
+        radial-gradient(circle at 18% 12%, rgba(240, 138, 57, 0.26), transparent 26%),
+        radial-gradient(circle at 82% 18%, rgba(46, 143, 129, 0.18), transparent 24%),
+        linear-gradient(180deg, #161a1b 0%, #0f1314 100%);
     }
 
     a {
       color: inherit;
+      text-decoration: none;
     }
 
-    .page {
-      width: min(1120px, calc(100vw - 32px));
+    img {
+      display: block;
+      max-width: 100%;
+    }
+
+    .site-shell {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .site-shell::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image: linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+      background-size: 100% 36px;
+      opacity: 0.45;
+    }
+
+    .wrap {
+      width: var(--container);
       margin: 0 auto;
-      padding: 28px 0 56px;
     }
 
-    .nav {
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      backdrop-filter: blur(18px);
+      background: rgba(15, 19, 20, 0.72);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .topbar-inner {
+      width: var(--container);
+      margin: 0 auto;
+      min-height: 76px;
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      gap: 16px;
-      margin-bottom: 40px;
+      justify-content: space-between;
+      gap: 20px;
     }
 
     .brand {
@@ -74,560 +115,1732 @@
       align-items: center;
       gap: 12px;
       font-weight: 800;
-      letter-spacing: 0.02em;
+      font-size: 15px;
+      letter-spacing: 0;
     }
 
     .brand img {
-      width: 40px;
-      height: 40px;
-      border-radius: 12px;
-      box-shadow: 0 10px 26px rgba(47, 34, 22, 0.14);
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.26);
     }
 
-    .nav-actions {
+    .brand-copy small {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .nav-links,
+    .topbar-actions {
       display: flex;
-      gap: 10px;
       align-items: center;
+      gap: 10px;
       flex-wrap: wrap;
     }
 
-    .nav-link {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      min-height: 40px;
-      padding: 0 12px;
-      border-radius: 999px;
-      border: 1px solid transparent;
-      color: var(--muted);
-      text-decoration: none;
-      font-size: 13px;
-      font-weight: 850;
-      transition: transform 0.18s, border-color 0.18s, background 0.18s, color 0.18s;
-    }
-
-    .nav-link:hover {
-      transform: translateY(-1px);
-      border-color: var(--line);
-      background: rgba(255, 255, 255, 0.58);
-      color: var(--ink);
-    }
-
-    .github-icon {
-      width: 18px;
-      height: 18px;
-      color: currentColor;
-      flex: 0 0 auto;
-    }
-
+    .nav-link,
     .btn {
+      min-height: 42px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-height: 44px;
-      padding: 0 18px;
-      border-radius: 14px;
-      border: 1px solid var(--line);
-      text-decoration: none;
-      font-weight: 800;
+      padding: 0 16px;
+      border-radius: 999px;
       font-size: 14px;
-      transition: transform 0.18s, box-shadow 0.18s, background 0.18s;
+      font-weight: 700;
+      transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
     }
 
+    .nav-link {
+      color: var(--muted);
+    }
+
+    .nav-link:hover,
     .btn:hover {
       transform: translateY(-1px);
     }
 
-    .btn-primary {
-      background: var(--brand);
-      color: #f7fffc;
-      border-color: rgba(24, 79, 75, 0.2);
-      box-shadow: 0 16px 32px rgba(36, 106, 101, 0.18);
+    .btn {
+      border: 1px solid transparent;
     }
 
     .btn-secondary {
-      background: rgba(255, 255, 255, 0.62);
-      color: var(--ink);
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.1);
+      color: var(--text);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent) 0%, #ff7d2f 100%);
+      color: #1d120a;
+      box-shadow: 0 14px 32px rgba(240, 138, 57, 0.22);
     }
 
     .hero {
+      padding: 52px 0 64px;
+    }
+
+    .hero-panel {
+      position: relative;
+      min-height: 620px;
       display: grid;
-      grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.75fr);
-      gap: 34px;
-      align-items: center;
-      min-height: 64vh;
+      grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
+      gap: 36px;
+      padding: 54px 46px 42px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02)),
+        radial-gradient(circle at 56% 38%, rgba(255, 196, 120, 0.28), transparent 26%),
+        linear-gradient(130deg, #231f1b 10%, #1a1e1f 56%, #121516 100%);
+      box-shadow: var(--shadow-dark);
+      overflow: hidden;
+    }
+
+    .hero-panel::before {
+      content: "";
+      position: absolute;
+      inset: auto 18% 16% 24%;
+      height: 168px;
+      background: linear-gradient(90deg, rgba(255, 210, 138, 0), rgba(255, 210, 138, 0.72), rgba(255, 210, 138, 0));
+      filter: blur(16px);
+      opacity: 0.5;
+      transform: skewY(-9deg);
+      pointer-events: none;
+    }
+
+    .hero-copy,
+    .hero-preview {
+      position: relative;
+      z-index: 1;
     }
 
     .eyebrow {
       display: inline-flex;
       align-items: center;
-      padding: 7px 11px;
+      gap: 8px;
+      padding: 8px 12px;
       border-radius: 999px;
-      background: rgba(36, 106, 101, 0.10);
-      color: var(--brand-dark);
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: #f7d1a5;
       font-size: 12px;
-      font-weight: 900;
+      font-weight: 800;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      margin-bottom: 18px;
     }
 
     h1 {
-      max-width: 780px;
-      font-family: Georgia, "Times New Roman", serif;
-      font-size: clamp(42px, 7vw, 78px);
+      max-width: 720px;
+      margin-top: 24px;
+      font-size: clamp(40px, 7vw, 72px);
       line-height: 0.98;
-      font-weight: 700;
       letter-spacing: 0;
     }
 
     .lead {
-      max-width: 680px;
-      margin-top: 22px;
+      max-width: 520px;
+      margin-top: 18px;
       color: var(--muted);
-      font-size: 17px;
-      line-height: 1.9;
+      font-size: 16px;
+      line-height: 1.8;
     }
 
     .hero-actions {
       display: flex;
       gap: 12px;
-      align-items: center;
       flex-wrap: wrap;
-      margin-top: 30px;
+      margin-top: 26px;
     }
 
     .trust-row {
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
-      margin-top: 22px;
+      margin-top: 18px;
     }
 
     .trust-pill {
       display: inline-flex;
       align-items: center;
-      padding: 7px 10px;
+      min-height: 34px;
+      padding: 0 12px;
       border-radius: 999px;
-      border: 1px solid rgba(23, 32, 29, 0.10);
-      background: rgba(255, 254, 250, 0.62);
-      color: var(--muted);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.04);
+      color: #dbe2dc;
       font-size: 12px;
+      font-weight: 700;
+    }
+
+    .hero-preview {
+      align-self: center;
+    }
+
+    .preview-stack {
+      display: grid;
+      gap: 14px;
+    }
+
+    .preview-card {
+      border-radius: var(--radius);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(14, 17, 18, 0.58);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 16px 44px rgba(0, 0, 0, 0.22);
+    }
+
+    .preview-card.header {
+      padding: 18px;
+    }
+
+    .preview-card.main {
+      padding: 18px;
+    }
+
+    .preview-card.main .workflow-list {
+      gap: 10px;
+    }
+
+    .preview-headline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .preview-headline strong {
+      font-size: 15px;
       font-weight: 800;
     }
 
-    .opensource-note {
-      max-width: 640px;
-      margin-top: 18px;
+    .preview-badge {
+      min-height: 28px;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: rgba(46, 143, 129, 0.14);
+      color: #9be0d4;
+      display: inline-flex;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .token-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .token {
+      padding: 12px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .token span,
+    .mini-line,
+    .step-note,
+    .faq-answer,
+    .privacy-copy p,
+    .section-copy p,
+    .value-copy p,
+    .footer-note,
+    .subtle-note {
       color: var(--muted);
+    }
+
+    .token strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .token span {
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .workflow-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .workflow-item {
+      display: grid;
+      grid-template-columns: 38px minmax(0, 1fr);
+      gap: 12px;
+      align-items: start;
+      padding: 12px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    .workflow-index {
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: rgba(240, 138, 57, 0.12);
+      color: #ffbe84;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .workflow-item strong {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .workflow-item span {
+      color: #cad2cc;
       font-size: 13px;
       line-height: 1.7;
     }
 
-    .opensource-note a {
-      color: var(--brand-dark);
-      font-weight: 850;
-      text-decoration: none;
-      border-bottom: 1px solid rgba(23, 76, 69, 0.24);
-    }
-
-    .opensource-note a:hover {
-      color: var(--brand);
-    }
-
-    .preview {
-      border: 1px solid rgba(255, 255, 255, 0.72);
-      background: var(--surface);
-      box-shadow: var(--shadow);
-      border-radius: 24px;
-      padding: 20px;
-      backdrop-filter: blur(18px);
-    }
-
-    .preview-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: center;
-      padding-bottom: 14px;
-      border-bottom: 1px solid var(--line);
-      margin-bottom: 16px;
-    }
-
-    .preview-title {
-      font-weight: 900;
-    }
-
-    .preview-pill {
-      color: var(--brand-dark);
-      background: rgba(36, 106, 101, 0.10);
-      border-radius: 999px;
-      padding: 6px 9px;
-      font-size: 12px;
-      font-weight: 800;
-      white-space: nowrap;
-    }
-
-    .preview-list {
-      display: grid;
-      gap: 10px;
-    }
-
-    .preview-item {
-      display: grid;
-      grid-template-columns: 34px minmax(0, 1fr);
-      gap: 10px;
-      align-items: center;
-      padding: 11px;
-      border-radius: 14px;
-      background: rgba(255, 255, 255, 0.55);
-      border: 1px solid rgba(32, 25, 19, 0.08);
-    }
-
-    .preview-icon {
-      width: 34px;
-      height: 34px;
-      border-radius: 10px;
-      display: grid;
-      place-items: center;
-      background: rgba(163, 90, 36, 0.12);
-      color: var(--accent);
-      font-weight: 900;
-    }
-
-    .preview-item strong {
-      display: block;
-      font-size: 14px;
-      margin-bottom: 2px;
-    }
-
-    .preview-item span {
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.5;
-    }
-
-    .section {
-      margin-top: 58px;
-    }
-
-    .section h2 {
-      font-size: clamp(26px, 4vw, 38px);
-      line-height: 1.15;
-      margin-bottom: 16px;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 14px;
-      margin-top: 20px;
-    }
-
-    .card {
-      min-height: 170px;
-      padding: 20px;
-      border-radius: 18px;
-      border: 1px solid rgba(255, 255, 255, 0.72);
-      background: rgba(255, 255, 255, 0.58);
-      box-shadow: 0 18px 42px rgba(47, 34, 22, 0.06);
-    }
-
-    .card strong {
-      display: block;
-      font-size: 17px;
-      margin-bottom: 10px;
-    }
-
-    .card p {
-      color: var(--muted);
+    .hero-subnote {
+      margin-top: 44px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+      max-width: 420px;
+      color: #c8d0ca;
       font-size: 14px;
       line-height: 1.8;
     }
 
-    .steps {
+    .paper-section {
+      background: var(--paper);
+      color: var(--paper-text);
+    }
+
+    .band {
+      padding: 88px 0;
+      border-top: 1px solid var(--paper-line);
+    }
+
+    .band-intro {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: minmax(0, 0.8fr) minmax(260px, 0.55fr);
+      gap: 32px;
+      align-items: end;
+      margin-bottom: 28px;
+    }
+
+    .section-label {
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+    }
+
+    h2 {
+      font-size: clamp(30px, 5vw, 56px);
+      line-height: 1.02;
+      letter-spacing: 0;
+    }
+
+    .section-copy p,
+    .privacy-copy p {
+      font-size: 16px;
+      line-height: 1.9;
+      color: var(--paper-muted);
+    }
+
+    .feature-grid,
+    .privacy-grid,
+    .faq-grid,
+    .footer-grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .feature-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .feature-card,
+    .privacy-card,
+    .faq-item {
+      padding: 24px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(23, 32, 29, 0.08);
+      background: rgba(255, 255, 255, 0.72);
+      box-shadow: var(--shadow-light);
+    }
+
+    .feature-card {
+      min-height: 220px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .feature-kicker {
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .feature-card strong,
+    .privacy-card strong {
+      display: block;
+      margin-top: 16px;
+      font-size: 22px;
+      line-height: 1.2;
+    }
+
+    .feature-card p,
+    .privacy-card p,
+    .subtle-note {
+      margin-top: 14px;
+      font-size: 15px;
+      line-height: 1.85;
+      color: var(--paper-muted);
+    }
+
+    .workflow-band {
+      display: grid;
+      grid-template-columns: minmax(0, 0.76fr) minmax(320px, 0.92fr);
+      gap: 20px;
+      align-items: stretch;
+    }
+
+    .workflow-summary,
+    .workflow-board {
+      padding: 28px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(23, 32, 29, 0.08);
+      background: rgba(255, 255, 255, 0.78);
+      box-shadow: var(--shadow-light);
+    }
+
+    .workflow-summary ul {
+      list-style: none;
+      display: grid;
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .workflow-summary li {
+      padding-top: 16px;
+      border-top: 1px solid rgba(23, 32, 29, 0.09);
+    }
+
+    .workflow-summary li strong {
+      display: block;
+      font-size: 18px;
+      margin-bottom: 6px;
+    }
+
+    .workflow-summary li p,
+    .mini-line {
+      font-size: 14px;
+      line-height: 1.8;
+      color: var(--paper-muted);
+    }
+
+    .board-shell {
+      display: grid;
+      gap: 14px;
+      height: 100%;
+    }
+
+    .motion-frame {
+      position: relative;
+      height: 100%;
+      min-height: 520px;
+      overflow: hidden;
+      border-radius: 8px;
+      border: 1px solid rgba(23, 32, 29, 0.08);
+      background: #fffdfa;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    }
+
+    .inline-demo {
+      position: relative;
+      height: 100%;
+      min-height: 520px;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
       gap: 12px;
-      margin-top: 20px;
+      padding: 14px;
+      background:
+        radial-gradient(circle at 18% 8%, rgba(240, 138, 57, 0.12), transparent 24%),
+        radial-gradient(circle at 86% 12%, rgba(46, 143, 129, 0.10), transparent 24%),
+        linear-gradient(180deg, #fffefa 0%, #f5f1e9 100%);
     }
 
-    .step {
-      padding: 18px;
-      border-radius: 18px;
-      border: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.5);
+    .inline-demo-hero {
+      position: relative;
+      overflow: hidden;
+      min-height: 102px;
+      padding: 16px 18px;
+      border-radius: 8px;
+      color: #edf0eb;
+      background:
+        radial-gradient(circle at 58% 42%, rgba(255, 196, 120, 0.22), transparent 28%),
+        linear-gradient(130deg, #231f1b 10%, #1a1e1f 58%, #121516 100%);
+      border: 1px solid rgba(255, 255, 255, 0.08);
     }
 
-    .step-number {
-      width: 42px;
-      height: 42px;
-      border-radius: 50%;
+    .inline-demo-hero::after {
+      content: "";
+      position: absolute;
+      left: 30%;
+      right: 10%;
+      bottom: -18px;
+      height: 74px;
+      background: linear-gradient(90deg, rgba(255, 210, 138, 0), rgba(255, 210, 138, 0.54), rgba(255, 210, 138, 0));
+      filter: blur(14px);
+      transform: skewY(-7deg);
+      pointer-events: none;
+    }
+
+    .inline-demo-hero strong {
+      position: relative;
+      z-index: 1;
+      display: block;
+      max-width: 560px;
+      font-size: 20px;
+      line-height: 1.22;
+    }
+
+    .inline-demo-hero span {
+      position: relative;
+      z-index: 1;
+      display: inline-flex;
+      width: fit-content;
+      margin-bottom: 10px;
+      min-height: 26px;
+      align-items: center;
+      padding: 0 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.06);
+      color: #f7d1a5;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .inline-demo-body {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr) auto;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .inline-demo-main,
+    .inline-demo-steps {
+      border-radius: 8px;
+      border: 1px solid rgba(23, 32, 29, 0.08);
+      background: rgba(255, 255, 255, 0.78);
+      box-shadow: 0 18px 38px rgba(15, 18, 20, 0.08);
+    }
+
+    .inline-demo-main {
+      padding: 12px;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 12px;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .demo-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 9px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(23, 32, 29, 0.08);
+      background: #fffefa;
+    }
+
+    .demo-chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .demo-chip,
+    .demo-tag {
+      min-height: 28px;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 9px;
+      border-radius: 999px;
+      background: rgba(46, 143, 129, 0.12);
+      color: #235f57;
+      font-size: 11px;
+      font-weight: 800;
+      transition: transform 0.25s ease, background 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .demo-chip.is-active,
+    .demo-tag.is-active {
+      transform: translateY(-1px);
+      background: rgba(240, 138, 57, 0.14);
+      color: #bf6118;
+      box-shadow: 0 0 0 5px rgba(240, 138, 57, 0.08);
+    }
+
+    .demo-toolbar-badge {
+      white-space: nowrap;
+      color: #56635e;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .demo-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .demo-panel {
+      min-width: 0;
+      min-height: 126px;
+      overflow: hidden;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(23, 32, 29, 0.08);
+      background: #fffefa;
+      transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    }
+
+    .demo-panel.is-active {
+      transform: translateY(-1px);
+      border-color: rgba(240, 138, 57, 0.26);
+      box-shadow: 0 0 0 6px rgba(240, 138, 57, 0.08);
+    }
+
+    .demo-panel-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 9px;
+      flex-wrap: wrap;
+    }
+
+    .demo-panel-head strong {
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .demo-panel-head span,
+    .demo-meta,
+    .demo-status {
+      color: #66716b;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .demo-search {
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(23, 32, 29, 0.08);
+      color: #7a847f;
+      font-size: 11px;
+      background: #fff;
+    }
+
+    .demo-tags,
+    .demo-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .demo-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .demo-note {
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(23, 32, 29, 0.08);
+      background: rgba(255, 255, 255, 0.9);
+      transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    }
+
+    .demo-note.is-active {
+      transform: translateY(-1px);
+      border-color: rgba(46, 143, 129, 0.24);
+      box-shadow: 0 12px 22px rgba(46, 143, 129, 0.10);
+    }
+
+    .demo-note strong {
+      display: block;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .demo-preview {
+      grid-column: span 1;
+    }
+
+    .demo-lines {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .demo-line {
+      height: 9px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(46, 143, 129, 0.16), rgba(240, 138, 57, 0.12));
+    }
+
+    .demo-line.short {
+      width: 56%;
+    }
+
+    .demo-action {
+      min-height: 34px;
+      padding: 0 11px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      font-size: 11px;
+      font-weight: 900;
+      background: #edf4f2;
+      color: #225f57;
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .demo-action.primary {
+      background: linear-gradient(135deg, var(--accent), #de7424);
+      color: #1d120a;
+    }
+
+    .demo-action.is-active {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 24px rgba(240, 138, 57, 0.18);
+    }
+
+    .inline-demo-steps {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+      align-content: stretch;
+      padding: 10px;
+    }
+
+    .demo-step {
+      position: relative;
+      min-width: 0;
+      min-height: 76px;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(23, 32, 29, 0.08);
+      background: rgba(255, 255, 255, 0.72);
+      transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .demo-step.is-active {
+      transform: translateY(-1px);
+      border-color: rgba(240, 138, 57, 0.24);
+      box-shadow: 0 12px 22px rgba(240, 138, 57, 0.10);
+    }
+
+    .demo-step span {
+      width: 20px;
+      height: 20px;
+      margin-bottom: 6px;
+      border-radius: 999px;
       display: grid;
       place-items: center;
-      background: var(--brand);
-      color: #fff;
+      background: rgba(240, 138, 57, 0.14);
+      color: #c9681f;
+      font-size: 11px;
       font-weight: 900;
     }
 
-    .step p {
-      color: var(--muted);
-      line-height: 1.75;
-      margin-top: 4px;
-      font-size: 13px;
+    .demo-step strong {
+      display: block;
+      margin-bottom: 2px;
+      font-size: 11px;
+      line-height: 1.35;
     }
 
-    .final-cta {
-      margin-top: 58px;
-      padding: 28px;
-      border-radius: 24px;
-      background: #1f332f;
-      color: #f8fffc;
+    .demo-step p {
+      margin: 0;
+      color: #66716b;
+      font-size: 10px;
+      line-height: 1.45;
+    }
+
+    .demo-cursor {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 28px;
+      height: 34px;
+      pointer-events: none;
+      z-index: 6;
+      transform: translate(650px, 96px);
+      transition: transform 0.68s cubic-bezier(0.25, 1, 0.5, 1);
+      filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.18));
+    }
+
+    .demo-cursor::after {
+      content: "";
+      position: absolute;
+      left: 4px;
+      top: 3px;
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      border: 2px solid rgba(240, 138, 57, 0.24);
+      transform: scale(0.4);
+      opacity: 0;
+    }
+
+    .demo-cursor.is-clicking::after {
+      animation: demoClickPulse 0.45s ease-out forwards;
+    }
+
+    @keyframes demoClickPulse {
+      0% { transform: scale(0.4); opacity: 0.8; }
+      100% { transform: scale(1.8); opacity: 0; }
+    }
+
+    .board-toolbar,
+    .board-window {
+      border-radius: 8px;
+      border: 1px solid rgba(23, 32, 29, 0.08);
+      background: #fbfaf7;
+    }
+
+    .board-toolbar {
       display: flex;
       justify-content: space-between;
-      gap: 18px;
       align-items: center;
+      gap: 10px;
+      padding: 14px 16px;
     }
 
-    .final-cta p {
-      color: rgba(248, 255, 252, 0.78);
-      line-height: 1.7;
+    .toolbar-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar-chip {
+      min-height: 30px;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: #eff3ef;
+      color: #36413d;
+      display: inline-flex;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .board-window {
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .board-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(180px, 0.8fr);
+      gap: 12px;
+    }
+
+    .board-panel {
+      padding: 16px;
+      border-radius: 8px;
+      background: #ffffff;
+      border: 1px solid rgba(23, 32, 29, 0.08);
+    }
+
+    .board-panel strong {
+      display: block;
+      font-size: 15px;
+      margin-bottom: 10px;
+    }
+
+    .line-stack {
+      display: grid;
+      gap: 8px;
+    }
+
+    .line {
+      height: 10px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(46, 143, 129, 0.18), rgba(46, 143, 129, 0.06));
+    }
+
+    .line.short {
+      width: 48%;
+    }
+
+    .line.medium {
+      width: 70%;
+    }
+
+    .line.accent {
+      background: linear-gradient(90deg, rgba(240, 138, 57, 0.34), rgba(240, 138, 57, 0.1));
+      width: 62%;
+    }
+
+    .export-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .export-chip {
+      padding: 14px;
+      border-radius: 8px;
+      background: #f5f6f1;
+      border: 1px solid rgba(23, 32, 29, 0.08);
+    }
+
+    .export-chip strong {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .privacy-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .faq-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .faq-item {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .faq-item summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 22px 24px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .faq-item summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .faq-item summary::after {
+      content: "+";
+      font-size: 22px;
+      line-height: 1;
+      color: var(--accent);
+      flex: 0 0 auto;
+    }
+
+    .faq-item[open] summary::after {
+      content: "-";
+    }
+
+    .faq-answer {
+      padding: 0 24px 24px;
+      font-size: 15px;
+      line-height: 1.85;
+      color: var(--paper-muted);
+      border-top: 1px solid rgba(23, 32, 29, 0.08);
+    }
+
+    .faq-answer ul {
+      margin-top: 10px;
+      padding-left: 18px;
+    }
+
+    .faq-answer li {
       margin-top: 6px;
     }
 
-    .final-cta .btn-primary {
-      background: #f8fffc;
-      color: #1f332f;
-      box-shadow: none;
-      white-space: nowrap;
+    .final-band {
+      padding: 88px 0 96px;
+      background: linear-gradient(180deg, #111516 0%, #0d1112 100%);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
     }
 
-    @media (max-width: 860px) {
-      .hero,
-      .grid,
-      .steps {
+    .final-panel {
+      display: grid;
+      grid-template-columns: minmax(0, 0.85fr) minmax(280px, 0.55fr);
+      gap: 28px;
+      align-items: center;
+      padding: 34px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background:
+        radial-gradient(circle at 88% 30%, rgba(240, 138, 57, 0.18), transparent 24%),
+        rgba(255, 255, 255, 0.03);
+      box-shadow: var(--shadow-dark);
+    }
+
+    .final-panel p {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.85;
+    }
+
+    .final-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .footer {
+      padding: 24px 0 42px;
+      background: #0d1112;
+    }
+
+    .footer-grid {
+      grid-template-columns: minmax(0, 1.1fr) repeat(2, minmax(180px, 0.45fr));
+      align-items: start;
+    }
+
+    .footer-title {
+      font-size: 28px;
+      line-height: 1.1;
+      margin-bottom: 10px;
+    }
+
+    .footer-group strong {
+      display: block;
+      margin-bottom: 10px;
+      color: #f0f3ee;
+      font-size: 15px;
+    }
+
+    .footer-links {
+      display: grid;
+      gap: 8px;
+    }
+
+    .footer-links a,
+    .footer-note a {
+      color: var(--muted);
+    }
+
+    .footer-links a:hover,
+    .footer-note a:hover {
+      color: var(--text);
+    }
+
+    .footer-note {
+      margin-top: 18px;
+      font-size: 13px;
+      line-height: 1.8;
+      color: var(--muted);
+    }
+
+    @media (max-width: 1080px) {
+      .hero-panel,
+      .band-intro,
+      .workflow-band,
+      .final-panel,
+      .footer-grid {
         grid-template-columns: 1fr;
       }
 
-      .hero {
+      .topbar-inner {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+        padding: 16px 0;
+      }
+
+      .nav-links,
+      .topbar-actions {
+        align-items: flex-start;
+        width: 100%;
+      }
+
+      .hero-panel {
         min-height: auto;
       }
 
-      .final-cta,
-      .nav {
-        align-items: flex-start;
-        flex-direction: column;
+      .feature-grid,
+      .privacy-grid,
+      .faq-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .inline-demo-body,
+      .demo-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .inline-demo-steps {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .final-actions {
+        justify-content: flex-start;
       }
     }
 
-    @media (max-width: 560px) {
-      .page {
-        width: min(100vw - 20px, 100%);
-        padding-top: 18px;
+    @media (max-width: 720px) {
+      :root {
+        --container: min(100vw - 20px, 100%);
       }
 
-      .nav-actions,
+      .hero {
+        padding-top: 24px;
+      }
+
+      .hero-panel,
+      .workflow-summary,
+      .workflow-board,
+      .feature-card,
+      .value-card,
+      .privacy-card,
+      .final-panel {
+        padding: 22px;
+      }
+
+      .nav-links,
+      .topbar-actions,
       .hero-actions,
-      .final-cta .btn {
+      .final-actions {
         width: 100%;
       }
 
-      .nav-link {
-        flex: 1 1 calc(50% - 5px);
-        min-width: 0;
+      .nav-links {
+        flex-direction: column;
+        gap: 8px;
       }
 
+      .nav-link,
       .btn {
         width: 100%;
       }
-    }
 
-    /* Unified product theme */
-    :root {
-      --paper: #f6f7f2;
-      --ink: #17201d;
-      --muted: #63716b;
-      --line: rgba(23, 32, 29, 0.12);
-      --brand: #26685f;
-      --brand-dark: #174c45;
-      --accent: #c46f3d;
-      --surface: rgba(255, 254, 250, 0.84);
-      --shadow: 0 22px 54px rgba(23, 32, 29, 0.09);
-    }
+      .token-grid,
+      .export-grid,
+      .board-row,
+      .inline-demo-steps {
+        grid-template-columns: 1fr;
+      }
 
-    body {
-      font-family: "Avenir Next", "Segoe UI", "PingFang SC", "Hiragino Sans GB", sans-serif;
-      background:
-        linear-gradient(135deg, rgba(38, 104, 95, 0.13), transparent 34%),
-        linear-gradient(225deg, rgba(196, 111, 61, 0.11), transparent 30%),
-        linear-gradient(180deg, #fbfbf6 0%, var(--paper) 100%);
-    }
+      .motion-frame,
+      .inline-demo {
+        min-height: 760px;
+      }
 
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      background-image: linear-gradient(rgba(23, 32, 29, 0.045) 1px, transparent 1px);
-      background-size: 100% 34px;
-      opacity: 0.55;
-    }
+      .inline-demo {
+        padding: 10px;
+      }
 
-    .btn,
-    .preview,
-    .card,
-    .step,
-    .final-cta,
-    .preview-item {
-      border-radius: 12px;
-    }
+      .demo-toolbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
 
-    .btn-primary {
-      background: var(--brand);
-      box-shadow: 0 16px 32px rgba(38, 104, 95, 0.18);
-    }
+      .demo-cursor {
+        display: none;
+      }
 
-    .btn-secondary {
-      background: rgba(255, 254, 250, 0.74);
-    }
+      .band,
+      .final-band {
+        padding: 72px 0;
+      }
 
-    .preview,
-    .card,
-    .step {
-      background: rgba(255, 254, 250, 0.72);
-      border-color: rgba(255, 255, 255, 0.72);
-    }
-
-    .preview-icon,
-    .step-number {
-      background: rgba(196, 111, 61, 0.13);
-      color: var(--accent);
-    }
-
-    .final-cta {
-      background: #193a35;
+      .faq-item summary {
+        font-size: 17px;
+      }
     }
   </style>
 </head>
 <body>
-  <main class="page">
-    <nav class="nav" aria-label="主导航">
-      <a class="brand" href="index.html" aria-label="Get 笔记 Markdown 导出工具首页">
-        <img src="icons/icon128.png" alt="">
-        <span>Get2MD</span>
-      </a>
-      <div class="nav-actions">
-        <a class="nav-link" href="https://github.com/Raymond-Hear/Getbiji2md" target="_blank" rel="noopener noreferrer" aria-label="打开 Getbiji2md 项目源码">
-          <svg class="github-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-            <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82A7.54 7.54 0 0 1 8 3.86c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>
-          </svg>
-          <span>项目源码</span>
+  <div class="site-shell">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="index.html" aria-label="Get2MD 首页">
+          <img src="icons/icon128.png" alt="">
+          <span class="brand-copy">
+            <small>Get Notes Export</small>
+            Get2MD
+          </span>
         </a>
-        <a class="nav-link" href="https://github.com/Raymond-Hear" target="_blank" rel="noopener noreferrer" aria-label="打开作者 GitHub 主页">
-          <svg class="github-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-            <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82A7.54 7.54 0 0 1 8 3.86c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>
-          </svg>
-          <span>作者主页</span>
-        </a>
-        <a class="btn btn-secondary" href="privacy.html">隐私说明</a>
-        <a class="btn btn-secondary" href="help.html">常见问题</a>
-        <a class="btn btn-secondary" href="#how">怎么开始</a>
-        <a class="btn btn-primary" href="app.html">打开导出工具</a>
-      </div>
-    </nav>
 
-    <section class="hero">
-      <div>
-        <span class="eyebrow">Get Notes Export</span>
-        <h1>把 Get 笔记带回你的写作流</h1>
-        <p class="lead">面向 Get 用户的本地优先导出工具。同步、筛选、预览，再把原文或 AI 总结导出为 Markdown，继续放进 Obsidian、Notion 或你的本地文件夹。</p>
-        <div class="hero-actions">
+        <nav class="nav-links" aria-label="首页导航">
+          <a class="nav-link" href="#features">功能亮点</a>
+          <a class="nav-link" href="#workflow">使用流程</a>
+        </nav>
+
+        <div class="topbar-actions">
+          <a class="btn btn-secondary" href="https://github.com/Raymond-Hear/Getbiji2md" target="_blank" rel="noopener noreferrer">查看源码</a>
           <a class="btn btn-primary" href="app.html">打开导出工具</a>
-          <a class="btn btn-secondary" href="#features">查看功能</a>
-        </div>
-        <div class="trust-row" aria-label="产品边界">
-          <a class="trust-pill" href="privacy.html">本地浏览器处理</a>
-          <span class="trust-pill">MIT 开源</span>
-          <span class="trust-pill">支持图文笔记</span>
-        </div>
-        <p class="opensource-note">当前版本是 V0.1 开源测试版。如果你遇到问题，可以到 GitHub <a href="https://github.com/Raymond-Hear/Getbiji2md/issues" target="_blank" rel="noopener noreferrer">反馈问题</a>；如果想一起改进，也欢迎 <a href="https://github.com/Raymond-Hear/Getbiji2md/pulls" target="_blank" rel="noopener noreferrer">提 PR</a>。</p>
-      </div>
-
-      <aside class="preview" aria-label="工具能力预览">
-        <div class="preview-head">
-          <div class="preview-title">工作流</div>
-          <div class="preview-pill">本地浏览器处理</div>
-        </div>
-        <div class="preview-list">
-          <div class="preview-item">
-            <div class="preview-icon">1</div>
-            <div><strong>设置</strong><span>填入开放平台信息。</span></div>
-          </div>
-          <div class="preview-item">
-            <div class="preview-icon">2</div>
-            <div><strong>同步</strong><span>拉取你的笔记内容。</span></div>
-          </div>
-          <div class="preview-item">
-            <div class="preview-icon">3</div>
-            <div><strong>筛选</strong><span>按标签、关键词缩小范围。</span></div>
-          </div>
-          <div class="preview-item">
-            <div class="preview-icon">4</div>
-            <div><strong>导出</strong><span>下载原文或 AI 总结。</span></div>
-          </div>
-        </div>
-      </aside>
-    </section>
-
-    <section id="features" class="section">
-      <h2>更像一个可控的导出工作台</h2>
-      <div class="grid">
-        <article class="card">
-          <strong>先同步，再筛选</strong>
-          <p>进入工具页后先同步内容，再按标签、关键词和本地已加载内容缩小范围。</p>
-        </article>
-        <article class="card">
-          <strong>先预览，再下载</strong>
-          <p>打开单篇详情确认原文、AI 总结和图片，再决定下载哪一类 Markdown。</p>
-        </article>
-        <article class="card">
-          <strong>刷新后恢复现场</strong>
-          <p>刷新页面后尽量恢复上次结果、筛选和详情，减少重复操作。</p>
-        </article>
-      </div>
-    </section>
-
-    <section id="how" class="section">
-      <h2>怎么开始</h2>
-      <div class="steps">
-        <div class="step">
-          <div class="step-number">1</div>
-          <div><strong>设置</strong><p>填入 API Key 和 Client ID。</p></div>
-        </div>
-        <div class="step">
-          <div class="step-number">2</div>
-          <div><strong>同步</strong><p>点击同步我的笔记。</p></div>
-        </div>
-        <div class="step">
-          <div class="step-number">3</div>
-          <div><strong>筛选</strong><p>按标签或关键词找到内容。</p></div>
-        </div>
-        <div class="step">
-          <div class="step-number">4</div>
-          <div><strong>导出</strong><p>下载原文或 AI 总结。</p></div>
         </div>
       </div>
-    </section>
+    </header>
 
-    <section class="final-cta">
-      <div>
-        <h2>准备把笔记带回自己手里了吗？</h2>
-        <p>进入工具页，完成设置后同步笔记，再选择需要的内容导出。</p>
+    <main>
+      <section class="hero">
+        <div class="wrap">
+          <div class="hero-panel">
+            <div class="hero-copy">
+              <span class="eyebrow">Local-first workflow</span>
+              <h1>把 Get 笔记，安静地带回你自己的写作流。</h1>
+              <p class="lead">先同步，后筛选，再导出。把内容整理清楚之后，再带回你自己的 Markdown 工作流。</p>
+
+              <div class="hero-actions">
+                <a class="btn btn-primary" href="app.html">立即打开工具</a>
+                <a class="btn btn-secondary" href="#workflow">先看怎么用</a>
+              </div>
+
+              <div class="trust-row" aria-label="产品边界">
+                <span class="trust-pill">本地浏览器处理</span>
+                <span class="trust-pill">MIT 开源</span>
+              </div>
+
+            </div>
+
+            <aside class="hero-preview" aria-label="工具预览">
+              <div class="preview-stack">
+                <div class="preview-card header">
+                  <div class="preview-headline">
+                    <strong>工具预览</strong>
+                    <span class="preview-badge">Local only</span>
+                  </div>
+                  <div class="token-grid">
+                    <div class="token">
+                      <strong>同步</strong>
+                      <span>先把内容拉进来，再做筛选。</span>
+                    </div>
+                    <div class="token">
+                      <strong>筛选</strong>
+                      <span>按标签、关键词、知识库缩小范围。</span>
+                    </div>
+                    <div class="token">
+                      <strong>预览</strong>
+                      <span>先确认原文和 AI 总结，再导出。</span>
+                    </div>
+                    <div class="token">
+                      <strong>导出</strong>
+                      <span>Markdown 继续流转到你自己的系统。</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </section>
+
+      <div class="paper-section">
+        <section id="features" class="band">
+          <div class="wrap">
+            <div class="band-intro">
+              <div>
+                <div class="section-label">Features</div>
+                <h2>不是只做一个下载按钮，而是一整套导出前的整理流程。</h2>
+              </div>
+              <div class="section-copy">
+                <p>不是单纯做一个下载按钮，而是把同步、筛选、预览和导出串成一个更清楚、更可控的整理过程。</p>
+              </div>
+            </div>
+
+            <div class="feature-grid">
+              <article class="feature-card">
+                <div>
+                  <span class="feature-kicker">Sync first</span>
+                  <strong>先把笔记拉进来，再决定导出什么。</strong>
+                  <p>进入工具后先同步内容，再根据实际数据去筛选，而不是靠猜测记忆找文章。</p>
+                </div>
+                <span class="subtle-note">适合内容量已经比较多、需要先缩小范围的人。</span>
+              </article>
+
+              <article class="feature-card">
+                <div>
+                  <span class="feature-kicker">Preview first</span>
+                  <strong>原文、图片、AI 总结先看清，再做下载动作。</strong>
+                  <p>导出前先打开详情确认内容，减少导完才发现格式不对、图片缺失或总结不想要的情况。</p>
+                </div>
+                <span class="subtle-note">让导出更像整理，不像碰运气。</span>
+              </article>
+
+              <article class="feature-card">
+                <div>
+                  <span class="feature-kicker">Restore state</span>
+                  <strong>刷新页面后尽量接着上次进度继续。</strong>
+                  <p>工具会尽量恢复筛选、已加载结果和当前查看的内容，降低重复劳动。</p>
+                </div>
+                <span class="subtle-note">更适合长时间整理资料，而不只是一次性下载。</span>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section id="workflow" class="band">
+          <div class="wrap">
+            <div class="band-intro">
+              <div>
+                <div class="section-label">Workflow</div>
+                <h2>一个更顺手的首页，应该把“怎么开始”讲得清楚。</h2>
+              </div>
+              <div class="section-copy">
+                <p>从了解工具边界，到看懂使用步骤，再到进入真正的导出界面，整条路径应该是顺的，不需要用户自己猜下一步该点哪里。</p>
+              </div>
+            </div>
+
+            <div class="workflow-band">
+              <div class="workflow-summary">
+                <div class="section-label">4 steps</div>
+                <h3 style="font-size:32px; line-height:1.08;">四步完成整理和导出</h3>
+                <ul>
+                  <li>
+                    <strong>1. 设置接口信息</strong>
+                    <p>填写 API Key 和 Client ID。它们保存在当前浏览器本地，不会被这个网站单独上传保存。</p>
+                  </li>
+                  <li>
+                    <strong>2. 同步你的笔记</strong>
+                    <p>先把内容拉取下来，再看有哪些标签、知识库和文章适合继续筛选。</p>
+                  </li>
+                  <li>
+                    <strong>3. 预览并确认</strong>
+                    <p>点开单篇详情，先看原文、图片和 AI 总结，再决定导出原文还是总结。</p>
+                  </li>
+                  <li>
+                    <strong>4. 导出 Markdown</strong>
+                    <p>把你真正需要的内容带回自己的知识管理流程，不被平台页面结构卡住。</p>
+                  </li>
+                </ul>
+              </div>
+
+              <div class="workflow-board" aria-label="产品流程示意">
+                <div class="motion-frame">
+                  <div class="inline-demo" data-home-demo>
+                    <div class="inline-demo-hero">
+                      <span>Autoplay product demo</span>
+                      <strong>浏览到这里，就能顺着看懂同步、筛选、预览和导出。</strong>
+                    </div>
+
+                    <div class="inline-demo-body">
+                      <div class="inline-demo-main">
+                        <div class="demo-toolbar">
+                          <div class="demo-chip-row">
+                            <span class="demo-chip is-active" data-demo-target="flow">顶部流程</span>
+                            <span class="demo-chip" data-demo-target="filter">筛选区</span>
+                            <span class="demo-chip" data-demo-target="results">结果区</span>
+                            <span class="demo-chip" data-demo-target="detail">详情区</span>
+                            <span class="demo-chip" data-demo-target="export">导出</span>
+                          </div>
+                          <span class="demo-toolbar-badge">Get2MD 工作流</span>
+                        </div>
+
+                        <div class="demo-grid">
+                          <div class="demo-panel" data-demo-panel="filter">
+                            <div class="demo-panel-head">
+                              <strong>筛选与搜索</strong>
+                              <span>先缩小范围</span>
+                            </div>
+                            <div class="demo-search">搜索标题、标签、内容关键词</div>
+                            <div class="demo-tags">
+                              <span class="demo-tag">我的知识库</span>
+                              <span class="demo-tag" data-demo-tag="export">导出</span>
+                              <span class="demo-tag">Markdown</span>
+                            </div>
+                          </div>
+
+                          <div class="demo-panel" data-demo-panel="results">
+                            <div class="demo-panel-head">
+                              <strong>结果列表</strong>
+                              <span data-demo-status="results">同步完成后，再开始筛选。</span>
+                            </div>
+                            <div class="demo-list">
+                              <article class="demo-note" data-demo-note="primary">
+                                <strong>Get 笔记原文导出方案整理</strong>
+                                <div class="demo-meta">标签：导出 / Markdown · 2026-05-24</div>
+                              </article>
+                              <article class="demo-note" data-demo-note="secondary">
+                                <strong>筛选体验与批量下载收口</strong>
+                                <div class="demo-meta">标签：筛选 / 批量 · 2026-05-23</div>
+                              </article>
+                            </div>
+                          </div>
+
+                          <div class="demo-panel demo-preview" data-demo-panel="detail">
+                            <div class="demo-panel-head">
+                              <strong>内容预览</strong>
+                              <span data-demo-status="detail">点开一篇笔记后查看详情。</span>
+                            </div>
+                            <div class="demo-lines">
+                              <div class="demo-line"></div>
+                              <div class="demo-line"></div>
+                              <div class="demo-line short"></div>
+                            </div>
+                          </div>
+
+                          <div class="demo-panel" data-demo-panel="export">
+                            <div class="demo-panel-head">
+                              <strong>导出动作</strong>
+                              <span>原文 / AI 总结</span>
+                            </div>
+                            <div class="demo-actions">
+                              <span class="demo-action primary" data-demo-export>下载原文</span>
+                              <span class="demo-action">下载 AI 总结</span>
+                            </div>
+                            <div class="demo-status" data-demo-status="export">先看到内容，再决定导出哪一份。</div>
+                          </div>
+                        </div>
+
+                        <svg class="demo-cursor" data-demo-cursor viewBox="0 0 24 30" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                          <path d="M4 2.8L18.8 17.1L12.1 17.5L15.5 27.2L11.4 28.5L8 18.8L3.6 23.8L4 2.8Z" fill="#fffdfa" stroke="#1d1611" stroke-width="1.2" stroke-linejoin="round"/>
+                        </svg>
+                      </div>
+
+                      <div class="inline-demo-steps">
+                        <article class="demo-step is-active" data-demo-step="flow">
+                          <span>1</span>
+                          <strong>看顶部流程</strong>
+                          <p>先知道这是一条整理与导出路径。</p>
+                        </article>
+                        <article class="demo-step" data-demo-step="filter">
+                          <span>2</span>
+                          <strong>进入筛选区</strong>
+                          <p>标签和关键词先把范围缩小。</p>
+                        </article>
+                        <article class="demo-step" data-demo-step="results">
+                          <span>3</span>
+                          <strong>结果开始聚焦</strong>
+                          <p>列表会更明确，知道该看哪几篇。</p>
+                        </article>
+                        <article class="demo-step" data-demo-step="detail">
+                          <span>4</span>
+                          <strong>打开详情预览</strong>
+                          <p>先看原文、图片和 AI 总结。</p>
+                        </article>
+                        <article class="demo-step" data-demo-step="export">
+                          <span>5</span>
+                          <strong>完成导出动作</strong>
+                          <p>最后落到下载按钮，动作很明确。</p>
+                        </article>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="privacy" class="band">
+          <div class="wrap">
+            <div class="band-intro">
+              <div>
+                <div class="section-label">Privacy</div>
+                <h2>你的笔记、凭证和使用边界，都应该说清楚。</h2>
+              </div>
+              <div class="privacy-copy">
+                <p>关于会保存什么、不会保存什么，以及使用时需要注意的边界，这里先说清楚。</p>
+              </div>
+            </div>
+
+            <div class="privacy-grid">
+              <article class="privacy-card">
+                <strong>会保存什么？</strong>
+                <p>为了让你下次不用重新填写，工具会把 API Key 和 Client ID 保存到当前浏览器本地。你可以在工具页里随时清空这些本地配置。</p>
+              </article>
+
+              <article class="privacy-card">
+                <strong>不会保存什么？</strong>
+                <p>不会保存你的 Get 账号，不会把 API Key、Client ID 写进仓库文件，也不会把你的笔记内容上传到这个项目自己的数据库。</p>
+              </article>
+
+              <article class="privacy-card">
+                <strong>使用时要注意什么？</strong>
+                <p>API Key 属于敏感信息。建议只在你信任的设备和浏览器里使用，不要把真实凭证发给别人，也不要放进公开截图、教程或仓库。</p>
+              </article>
+            </div>
+
+            <p class="subtle-note" style="margin-top:18px;">
+              需要更完整的条款，也可以继续查看
+              <a href="privacy.html">隐私说明</a>
+              和
+              <a href="https://github.com/Raymond-Hear/Getbiji2md" target="_blank" rel="noopener noreferrer">GitHub 项目源码</a>。
+            </p>
+          </div>
+        </section>
+
+        <section id="faq" class="band">
+          <div class="wrap">
+            <div class="band-intro">
+              <div>
+                <div class="section-label">FAQ</div>
+                <h2>遇到问题时，先在这里快速排查。</h2>
+              </div>
+              <div class="section-copy">
+                <p>把最常遇到的几类问题集中放在这里，浏览时顺手就能查。</p>
+              </div>
+            </div>
+
+            <div class="faq-grid">
+              <details class="faq-item" open>
+                <summary>同步失败怎么办？</summary>
+                <div class="faq-answer">
+                  <ul>
+                    <li>确认已经填写 API Key 和 Client ID。</li>
+                    <li>确认当前 Get 账号具备开放平台能力和会员权限。</li>
+                    <li>如果刚刚失败，稍等一会儿再点击“同步我的笔记”。</li>
+                  </ul>
+                </div>
+              </details>
+
+              <details class="faq-item">
+                <summary>看到 429 是什么意思？</summary>
+                <div class="faq-answer">
+                  429 一般表示请求过快。工具会尽量自动重试，你也可以稍等片刻后继续同步或导出。
+                </div>
+              </details>
+
+              <details class="faq-item">
+                <summary>为什么“我的知识库”可能是空的？</summary>
+                <div class="faq-answer">
+                  先同步一次笔记和知识库。如果仍然为空，可能是开放平台暂时没有返回你的个人知识库列表，但笔记列表仍然可以按标签和关键词筛选。
+                </div>
+              </details>
+
+              <details class="faq-item">
+                <summary>图片会一起导出吗？</summary>
+                <div class="faq-answer">
+                  详情页会展示图文笔记里的图片预览。导出 Markdown 时会尽量保留图片链接，方便你后续再整理。
+                </div>
+              </details>
+
+              <details class="faq-item">
+                <summary>刷新页面后还要重新加载吗？</summary>
+                <div class="faq-answer">
+                  工具会尽量恢复上次加载结果、筛选条件和当前详情。只有在你主动清理浏览器数据后，才需要重新填写接口设置。
+                </div>
+              </details>
+
+              <details class="faq-item">
+                <summary>问题还是没解决怎么办？</summary>
+                <div class="faq-answer">
+                  可以到
+                  <a href="https://github.com/Raymond-Hear/Getbiji2md/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a>
+                  反馈问题。描述你正在做什么、看到什么提示、使用什么浏览器即可，不要贴出真实 API Key、Client ID 或 Token。
+                </div>
+              </details>
+            </div>
+
+            <p class="subtle-note" style="margin-top:18px;">
+              需要查看更多排查说明，也可以继续查看
+              <a href="help.html">FAQ 页面</a>。
+            </p>
+          </div>
+        </section>
       </div>
-      <a class="btn btn-primary" href="app.html">打开导出工具</a>
-    </section>
-  </main>
+
+      <section class="final-band">
+        <div class="wrap">
+          <div class="final-panel">
+            <div>
+              <div class="section-label">Get started</div>
+              <h2 style="font-size:clamp(30px, 5vw, 54px); line-height:1.02;">准备好把笔记带回自己手里了吗？</h2>
+              <p>完成接口设置后同步笔记，再按你自己的方式筛选、预览和导出。</p>
+            </div>
+
+            <div class="final-actions">
+              <a class="btn btn-secondary" href="#workflow">先看使用流程</a>
+              <a class="btn btn-primary" href="app.html">打开导出工具</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="wrap footer-grid">
+        <div>
+          <div class="footer-title">Get2MD</div>
+          <p class="footer-note">一个面向 Get 用户的本地优先 Markdown 导出工具。适合把原文和 AI 总结带回你自己的知识管理流程。</p>
+          <p class="footer-note">Copyright 2026 Raymond Hear. All rights reserved.</p>
+        </div>
+
+        <div class="footer-group">
+          <strong>页面导航</strong>
+          <div class="footer-links">
+            <a href="#features">功能亮点</a>
+            <a href="#workflow">使用流程</a>
+            <a href="#privacy">隐私说明</a>
+            <a href="#faq">常见问题</a>
+          </div>
+        </div>
+
+        <div class="footer-group">
+          <strong>相关链接</strong>
+          <div class="footer-links">
+            <a href="app.html">打开工具</a>
+            <a href="privacy.html">独立隐私页</a>
+            <a href="help.html">独立 FAQ 页</a>
+            <a href="https://github.com/Raymond-Hear/Getbiji2md" target="_blank" rel="noopener noreferrer">GitHub 源码</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </div>
+  <script>
+    (() => {
+      const faqItems = Array.from(document.querySelectorAll(".faq-grid .faq-item"));
+      if (!faqItems.length) return;
+
+      let isSyncing = false;
+      faqItems.forEach((item, index) => {
+        item.addEventListener("toggle", () => {
+          if (isSyncing) return;
+
+          const pairIndex = index % 2 === 0 ? index + 1 : index - 1;
+          const pairedItem = faqItems[pairIndex];
+          if (!pairedItem) return;
+
+          isSyncing = true;
+          pairedItem.open = item.open;
+          isSyncing = false;
+        });
+      });
+
+      for (let index = 0; index < faqItems.length; index += 2) {
+        if (faqItems[index]?.open && faqItems[index + 1]) {
+          faqItems[index + 1].open = true;
+        }
+      }
+    })();
+
+    (() => {
+      const demo = document.querySelector("[data-home-demo]");
+      if (!demo) return;
+
+      const cursor = demo.querySelector("[data-demo-cursor]");
+      const chips = Array.from(demo.querySelectorAll("[data-demo-target]"));
+      const steps = Array.from(demo.querySelectorAll("[data-demo-step]"));
+      const panels = Array.from(demo.querySelectorAll("[data-demo-panel]"));
+      const primaryNote = demo.querySelector("[data-demo-note='primary']");
+      const secondaryNote = demo.querySelector("[data-demo-note='secondary']");
+      const exportTag = demo.querySelector("[data-demo-tag='export']");
+      const exportButton = demo.querySelector("[data-demo-export]");
+      const resultsStatus = demo.querySelector("[data-demo-status='results']");
+      const detailStatus = demo.querySelector("[data-demo-status='detail']");
+      const exportStatus = demo.querySelector("[data-demo-status='export']");
+
+      const sequence = [
+        {
+          id: "flow",
+          x: 632,
+          y: 96,
+          results: "先理解结构，再进入操作。",
+          detail: "点开一篇笔记后查看详情。",
+          export: "先看到内容，再决定导出哪一份。"
+        },
+        {
+          id: "filter",
+          x: 148,
+          y: 230,
+          results: "标签被激活后，开始缩小结果范围。",
+          detail: "先把范围收住，再看单篇内容。",
+          export: "筛选先行，导出动作会更确定。"
+        },
+        {
+          id: "results",
+          x: 445,
+          y: 238,
+          results: "结果列表开始聚焦到更相关的内容。",
+          detail: "现在可以挑一篇更值得看的笔记。",
+          export: "先看结果变化，再决定导出内容。"
+        },
+        {
+          id: "detail",
+          x: 398,
+          y: 410,
+          results: "已选中一篇笔记。",
+          detail: "详情已打开，可预览原文、图片和 AI 总结。",
+          export: "看完详情再导出，心里会更有数。"
+        },
+        {
+          id: "export",
+          x: 650,
+          y: 420,
+          results: "内容已经确认。",
+          detail: "内容已确认，可以直接进入导出动作。",
+          export: "下载原文或 AI 总结都很直接，路径在这里收口。"
+        }
+      ];
+
+      function toggleActive(items, attr, id) {
+        items.forEach((item) => item.classList.toggle("is-active", item.dataset[attr] === id));
+      }
+
+      function run(index) {
+        const item = sequence[index];
+        toggleActive(chips, "demoTarget", item.id);
+        toggleActive(steps, "demoStep", item.id);
+        toggleActive(panels, "demoPanel", item.id);
+
+        exportTag?.classList.toggle("is-active", index >= 1);
+        primaryNote?.classList.toggle("is-active", index >= 2);
+        secondaryNote?.classList.toggle("is-active", index === 2);
+        exportButton?.classList.toggle("is-active", item.id === "export");
+
+        if (resultsStatus) resultsStatus.textContent = item.results;
+        if (detailStatus) detailStatus.textContent = item.detail;
+        if (exportStatus) exportStatus.textContent = item.export;
+
+        if (cursor) {
+          cursor.style.transform = `translate(${item.x}px, ${item.y}px)`;
+          cursor.classList.remove("is-clicking");
+          void cursor.offsetWidth;
+          cursor.classList.add("is-clicking");
+        }
+      }
+
+      let current = 0;
+      run(current);
+      window.setInterval(() => {
+        current = (current + 1) % sequence.length;
+        run(current);
+      }, 2400);
+    })();
+  </script>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>

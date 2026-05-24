@@ -10,7 +10,7 @@
   <meta property="og:url" content="https://get2md.lingfengraymond.top/help.html">
   <meta property="og:image" content="https://get2md.lingfengraymond.top/icons/icon512.png">
   <meta name="twitter:card" content="summary">
-  <meta name="theme-color" content="#26685f">
+  <meta name="theme-color" content="#131718">
   <link rel="canonical" href="https://get2md.lingfengraymond.top/help.html">
   <link rel="manifest" href="site.webmanifest">
   <link rel="icon" type="image/png" sizes="16x16" href="icons/icon16.png">
@@ -20,15 +20,17 @@
   <title>常见问题｜Get2MD</title>
   <style>
     :root {
-      --paper: #f6f7f2;
+      --bg: #131718;
+      --paper: #f3f0ea;
       --ink: #17201d;
       --muted: #63716b;
       --line: rgba(23, 32, 29, 0.12);
-      --brand: #26685f;
-      --brand-dark: #174c45;
-      --accent: #c46f3d;
-      --surface: rgba(255, 254, 250, 0.84);
-      --shadow: 0 22px 54px rgba(23, 32, 29, 0.09);
+      --brand: #f08a39;
+      --brand-dark: #de7424;
+      --teal: #2e8f81;
+      --surface: rgba(255, 254, 250, 0.86);
+      --shadow: 0 22px 54px rgba(15, 18, 20, 0.12);
+      --radius: 8px;
     }
 
     * {
@@ -42,9 +44,9 @@
       font-family: "Avenir Next", "Segoe UI", "PingFang SC", "Hiragino Sans GB", sans-serif;
       color: var(--ink);
       background:
-        linear-gradient(135deg, rgba(38, 104, 95, 0.13), transparent 34%),
-        linear-gradient(225deg, rgba(196, 111, 61, 0.11), transparent 30%),
-        linear-gradient(180deg, #fbfbf6 0%, var(--paper) 100%);
+        radial-gradient(circle at 16% 8%, rgba(240, 138, 57, 0.22), transparent 22%),
+        radial-gradient(circle at 84% 10%, rgba(46, 143, 129, 0.16), transparent 20%),
+        linear-gradient(180deg, #161a1b 0%, #101415 22%, var(--paper) 22%, var(--paper) 100%);
     }
 
     body::before {
@@ -52,9 +54,9 @@
       position: fixed;
       inset: 0;
       pointer-events: none;
-      background-image: linear-gradient(rgba(23, 32, 29, 0.045) 1px, transparent 1px);
+      background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
       background-size: 100% 34px;
-      opacity: 0.55;
+      opacity: 0.48;
     }
 
     a {
@@ -65,7 +67,7 @@
       position: relative;
       width: min(980px, calc(100vw - 32px));
       margin: 0 auto;
-      padding: 28px 0 64px;
+      padding: 24px 0 72px;
     }
 
     .nav {
@@ -73,7 +75,7 @@
       justify-content: space-between;
       align-items: center;
       gap: 16px;
-      margin-bottom: 44px;
+      margin-bottom: 28px;
     }
 
     .brand {
@@ -87,8 +89,8 @@
     .brand img {
       width: 40px;
       height: 40px;
-      border-radius: 12px;
-      box-shadow: 0 10px 26px rgba(23, 32, 29, 0.12);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
     }
 
     .nav-actions {
@@ -103,7 +105,7 @@
       justify-content: center;
       min-height: 44px;
       padding: 0 18px;
-      border-radius: 12px;
+      border-radius: 999px;
       border: 1px solid var(--line);
       text-decoration: none;
       font-weight: 800;
@@ -111,23 +113,28 @@
     }
 
     .btn-primary {
-      background: var(--brand);
-      color: #f7fffc;
-      box-shadow: 0 16px 32px rgba(38, 104, 95, 0.18);
+      background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+      color: #1d120a;
+      box-shadow: 0 16px 32px rgba(240, 138, 57, 0.22);
+      border-color: transparent;
     }
 
     .btn-secondary {
-      background: rgba(255, 254, 250, 0.74);
-      color: var(--ink);
+      background: rgba(255, 255, 255, 0.08);
+      color: #edf0eb;
+      border-color: rgba(255, 255, 255, 0.1);
     }
 
     .hero {
       padding: clamp(28px, 6vw, 54px);
-      border-radius: 28px;
-      background: var(--surface);
-      border: 1px solid rgba(255, 255, 255, 0.72);
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(16px);
+      border-radius: var(--radius);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02)),
+        radial-gradient(circle at 60% 34%, rgba(255, 196, 120, 0.24), transparent 24%),
+        linear-gradient(130deg, #231f1b 10%, #1a1e1f 56%, #121516 100%);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28);
+      color: #edf0eb;
     }
 
     .eyebrow {
@@ -135,8 +142,9 @@
       align-items: center;
       padding: 7px 11px;
       border-radius: 999px;
-      background: rgba(38, 104, 95, 0.10);
-      color: var(--brand-dark);
+      background: rgba(255, 255, 255, 0.06);
+      color: #f7d1a5;
+      border: 1px solid rgba(255, 255, 255, 0.08);
       font-size: 12px;
       font-weight: 900;
       letter-spacing: 0.08em;
@@ -148,14 +156,14 @@
       max-width: 760px;
       font-family: Georgia, "Times New Roman", serif;
       font-size: clamp(38px, 7vw, 72px);
-      line-height: 0.98;
+      line-height: 1.02;
       font-weight: 700;
     }
 
     .lead {
       max-width: 720px;
       margin-top: 20px;
-      color: var(--muted);
+      color: #c7cfca;
       font-size: 17px;
       line-height: 1.9;
     }
@@ -169,9 +177,10 @@
 
     .card {
       padding: 22px;
-      border-radius: 16px;
-      border: 1px solid rgba(255, 255, 255, 0.72);
-      background: rgba(255, 254, 250, 0.72);
+      border-radius: var(--radius);
+      border: 1px solid rgba(23, 32, 29, 0.08);
+      background: rgba(255, 255, 255, 0.72);
+      box-shadow: var(--shadow);
     }
 
     .card h2 {
@@ -198,10 +207,10 @@
     }
 
     .note a {
-      color: var(--brand-dark);
+      color: var(--teal);
       font-weight: 850;
       text-decoration: none;
-      border-bottom: 1px solid rgba(23, 76, 69, 0.24);
+      border-bottom: 1px solid rgba(46, 143, 129, 0.24);
     }
 
     @media (max-width: 760px) {
