@@ -504,7 +504,7 @@ function applyProductCopy() {
   const heroNote = document.querySelector('.hero-note');
   if (heroNote) heroNote.textContent = '你的 API Key 和笔记内容只保存在当前浏览器。';
 
-  if (refreshBtn) refreshBtn.textContent = '同步我的笔记';
+  if (refreshBtn) refreshBtn.textContent = getSyncButtonLabel();
   if (openSettingsBtn) openSettingsBtn.textContent = '接口设置';
 
   const statLabels = document.querySelectorAll('.stat-label');
@@ -588,7 +588,7 @@ function applyEnvironmentCopy() {
   }
 
   if (filterElements.filterInlineMeta) {
-    filterElements.filterInlineMeta.textContent = '完成设置后，点击“同步我的笔记”开始加载内容。';
+    filterElements.filterInlineMeta.textContent = `完成设置后，点击“${getFirstSyncButtonLabel()}”开始加载内容。`;
   }
 }
 
@@ -805,6 +805,30 @@ function clearSyncGuideSeen() {
   localStorage.removeItem(STORAGE_KEYS.syncGuideSeen);
 }
 
+function hasSyncedNotes() {
+  return getAllScopeNotesSource().length > 0;
+}
+
+function getSyncButtonLabel() {
+  return hasSyncedNotes() ? '同步最近笔记' : '同步过去所有笔记';
+}
+
+function getFirstSyncButtonLabel() {
+  return '同步过去所有笔记';
+}
+
+function updateSyncGuideCopy() {
+  const guide = document.getElementById('syncGuidePopover');
+  if (!guide) return;
+
+  guide.querySelector('.sync-guide-title').textContent = '点这里同步你过去的笔记';
+  guide.querySelector('.sync-guide-copy').textContent = '第一次同步会整理你过去的笔记。完成后，就可以继续筛选、预览和导出了。';
+  const goBtn = guide.querySelector('#syncGuideGoBtn');
+  if (goBtn) {
+    goBtn.textContent = '现在去同步';
+  }
+}
+
 function ensureSyncGuide() {
   if (document.getElementById('syncGuidePopover')) return;
 
@@ -813,14 +837,15 @@ function ensureSyncGuide() {
   guide.className = 'sync-guide-popover';
   guide.innerHTML = `
     <div class="sync-guide-eyebrow">Next Step</div>
-    <div class="sync-guide-title">点这里同步你的笔记</div>
-    <div class="sync-guide-copy">刚完成设置后，还需要点一下“同步我的笔记”。第一次同步完成后，你就可以继续筛选、预览和导出了。</div>
+    <div class="sync-guide-title">点这里同步你过去的笔记</div>
+    <div class="sync-guide-copy">第一次同步会整理你过去的笔记。完成后，就可以继续筛选、预览和导出了。</div>
     <div class="sync-guide-actions">
       <button id="syncGuideGoBtn" class="btn btn-primary" type="button">现在去同步</button>
       <button id="syncGuideDismissBtn" class="btn btn-secondary" type="button">我知道了</button>
     </div>
   `;
   document.body.appendChild(guide);
+  updateSyncGuideCopy();
 
   document.getElementById('syncGuideGoBtn')?.addEventListener('click', async () => {
     hideSyncGuide({ markSeen: true });
@@ -846,6 +871,7 @@ function showSyncGuide() {
   if (!hasSavedConfig || hasSeenSyncGuide() || !refreshBtn) return;
 
   ensureSyncGuide();
+  updateSyncGuideCopy();
   syncGuideVisible = true;
   refreshBtn.classList.add('btn-attention');
   document.getElementById('syncGuidePopover')?.classList.add('visible');
@@ -1257,7 +1283,7 @@ function updateLoadButtons() {
   if (refreshBtn) {
     const busy = isLoadingNotes || isLoadingKnowledgeBases;
     refreshBtn.disabled = busy;
-    refreshBtn.textContent = busy ? '同步中...' : '同步我的笔记';
+    refreshBtn.textContent = busy ? '同步中...' : getSyncButtonLabel();
   }
 
   if (!hasSavedConfig) {
@@ -2008,6 +2034,28 @@ function mergeNotes(existingNotes, incomingNotes) {
   return { merged, addedCount };
 }
 
+function prependFreshNotes(existingNotes, incomingNotes) {
+  const seenIds = new Set(existingNotes.map(getNoteId).filter(Boolean));
+  const freshNotes = [];
+
+  for (const note of incomingNotes) {
+    const noteId = getNoteId(note);
+    if (noteId && seenIds.has(noteId)) {
+      break;
+    }
+    if (noteId) {
+      seenIds.add(noteId);
+    }
+    freshNotes.push(note);
+  }
+
+  return {
+    merged: freshNotes.length > 0 ? [...freshNotes, ...existingNotes] : [...existingNotes],
+    addedCount: freshNotes.length,
+    hitExisting: freshNotes.length < incomingNotes.length
+  };
+}
+
 function resetLoadedNotesState() {
   allNotes = [];
   filteredNotes = [];
@@ -2038,6 +2086,108 @@ function applyContextToLoadState(context) {
 function getCurrentScopeName() {
   if (!ENABLE_KNOWLEDGE_BASE_FILTER || !activeKnowledgeBaseId) return '全部笔记';
   return ownedKnowledgeBases.find(item => item.id === activeKnowledgeBaseId)?.name || '我的知识库';
+}
+
+function getAllScopeNotesSource() {
+  if (allScopeSnapshot && Array.isArray(allScopeSnapshot.notes) && allScopeSnapshot.notes.length > 0) {
+    return allScopeSnapshot.notes;
+  }
+  return Array.isArray(allNotes) ? allNotes : [];
+}
+
+function getNotesForKnowledgeBase(notes, knowledgeBaseId) {
+  if (!knowledgeBaseId) {
+    return Array.isArray(notes) ? [...notes] : [];
+  }
+
+  const knowledgeBaseName = ownedKnowledgeBases.find(item => item.id === knowledgeBaseId)?.name || '';
+  return (Array.isArray(notes) ? notes : []).filter(note => {
+    const topics = getTopicEntries(note);
+    return topics.some(topic => (
+      topic.id === knowledgeBaseId
+      || (knowledgeBaseName && String(topic.name || '').trim() === String(knowledgeBaseName).trim())
+    ));
+  });
+}
+
+function syncCurrentViewWithAllScopeSnapshot() {
+  const sourceNotes = getAllScopeNotesSource();
+
+  if (activeKnowledgeBaseId) {
+    replaceNotesForNewScope(getNotesForKnowledgeBase(sourceNotes, activeKnowledgeBaseId));
+    applyContextToLoadState({
+      mode: 'owned-knowledge',
+      scopeName: getCurrentScopeName(),
+      page: loadState.page,
+      hasMore: loadState.hasMore,
+      totalHint: loadState.totalHint
+    });
+    return;
+  }
+
+  replaceNotesForNewScope(sourceNotes);
+  if (allScopeSnapshot?.loadState) {
+    applyContextToLoadState(allScopeSnapshot.loadState);
+  }
+}
+
+async function incrementalRefreshAllNotes() {
+  const sourceNotes = getAllScopeNotesSource();
+  if (sourceNotes.length === 0) {
+    return { addedCount: 0, checkedPages: 0, usedIncremental: false };
+  }
+
+  let mergedNotes = [...sourceNotes];
+  let cursor = '0';
+  let hasMore = true;
+  let checkedPages = 0;
+  let addedCount = 0;
+
+  while (hasMore && checkedPages < 50) {
+    const result = await getNoteList(cursor, PAGE_SIZE);
+    checkedPages += 1;
+
+    const prependResult = prependFreshNotes(mergedNotes, result.notes);
+    mergedNotes = prependResult.merged;
+    addedCount += prependResult.addedCount;
+
+    if (prependResult.hitExisting || result.notes.length === 0 || !result.hasMore || prependResult.addedCount === 0) {
+      break;
+    }
+
+    cursor = result.nextCursor;
+    hasMore = result.hasMore;
+    await wait(250);
+  }
+
+  const snapshotLoadState = allScopeSnapshot?.loadState || {
+    mode: 'all',
+    scopeName: '全部笔记',
+    cursor: loadState.mode === 'all' ? loadState.cursor : '0',
+    page: 1,
+    hasMore: loadState.mode === 'all' ? loadState.hasMore : false,
+    totalHint: loadState.mode === 'all' ? loadState.totalHint : 0
+  };
+
+  allScopeSnapshot = {
+    notes: mergedNotes,
+    loadState: {
+      ...snapshotLoadState,
+      mode: 'all',
+      scopeName: '全部笔记',
+      totalHint: Math.max(snapshotLoadState.totalHint || 0, mergedNotes.length)
+    }
+  };
+
+  syncCurrentViewWithAllScopeSnapshot();
+  applyFilters();
+  saveViewState();
+
+  return {
+    addedCount,
+    checkedPages,
+    usedIncremental: true
+  };
 }
 
 async function loadOwnedKnowledgeBases(options = {}) {
@@ -2292,12 +2442,34 @@ async function refreshNotes() {
     return;
   }
 
+  const hasLocalSnapshot = getAllScopeNotesSource().length > 0;
+
   if (ENABLE_KNOWLEDGE_BASE_FILTER) {
-    await loadOwnedKnowledgeBases({ preserveExisting: false });
+    await loadOwnedKnowledgeBases({ preserveExisting: hasLocalSnapshot });
   }
-  await refreshNotesForCurrentFilters();
-  if (loadState.hasMore) {
-    await loadAllRemainingForCurrentFeed();
+
+  if (!hasLocalSnapshot) {
+    await refreshNotesForCurrentFilters();
+    if (loadState.hasMore) {
+      await loadAllRemainingForCurrentFeed();
+    }
+    return;
+  }
+
+  beginLoading('正在检查最新笔记…');
+
+  try {
+    const result = await incrementalRefreshAllNotes();
+    if (result.addedCount > 0) {
+      showStatus(`已同步 ${result.addedCount} 条最近笔记`, 'success');
+      finishLoading('增量同步完成');
+    } else {
+      showStatus('没有发现新笔记', 'info');
+      finishLoading('已经是最新');
+    }
+  } catch (error) {
+    finishLoading();
+    showStatus(`增量同步失败: ${error.message}`);
   }
 }
 
@@ -2560,15 +2732,15 @@ async function saveConfig() {
   updateClearConfigVisibility();
 
   closeSettings();
-  showEmpty('下一步是同步笔记', '点“同步我的笔记”后，这里就会开始出现内容。', [
+  showEmpty('下一步是同步笔记', `点“${getFirstSyncButtonLabel()}”后，这里就会开始出现内容。`, [
     {
       id: 'syncAfterSave',
-      label: '同步我的笔记',
+      label: getFirstSyncButtonLabel(),
       variant: 'primary',
       handler: refreshNotes
     }
   ]);
-  showStatus('配置已保存。下一步请点击“同步我的笔记”。', 'success');
+  showStatus(`配置已保存。下一步请点击“${getFirstSyncButtonLabel()}”。`, 'success');
   showSyncGuide();
   saveViewState();
 }
@@ -2747,15 +2919,15 @@ bindEvents();
         knowledgeBaseSyncState = 'ready';
       }
     } else {
-      showEmpty('先同步一次笔记', '完成设置后，点击“同步我的笔记”，就能开始筛选、预览和导出。', [
+      showEmpty('先同步一次过去的笔记', `完成设置后，点击“${getFirstSyncButtonLabel()}”，就能开始筛选、预览和导出。`, [
         {
           id: 'firstSync',
-          label: '同步我的笔记',
+          label: getFirstSyncButtonLabel(),
           variant: 'primary',
           handler: refreshNotes
         }
       ]);
-      showStatus('点击“同步我的笔记”开始首次同步。', 'info');
+      showStatus(`点击“${getFirstSyncButtonLabel()}”开始首次同步。`, 'info');
       showSyncGuide();
     }
   } else {
