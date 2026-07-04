@@ -7,6 +7,10 @@ const STORAGE_KEYS = {
   viewState: 'get-notes-view-state',
   syncGuideSeen: 'get-notes-sync-guide-seen'
 };
+const VIEWSTATE_DB_NAME = 'get-notes-cache';
+const VIEWSTATE_DB_VERSION = 1;
+const VIEWSTATE_STORE_NAME = 'kv';
+const VIEWSTATE_RECORD_KEY = 'view-state';
 
 const RATE_LIMIT_STATUS = 429;
 const PAGE_SIZE = 20;
@@ -50,6 +54,9 @@ const detailMeta = document.getElementById('detailMeta');
 const detailEmptyHint = document.getElementById('detailEmptyHint');
 const originalContent = document.getElementById('originalContent');
 const aiContent = document.getElementById('aiContent');
+const detailContentLabels = Array.from(detailView?.querySelectorAll('.content-label') || []);
+const originalContentLabel = detailContentLabels[0] || null;
+const aiContentLabel = detailContentLabels[1] || null;
 
 let filterElements = {};
 let allNotes = [];
@@ -69,6 +76,8 @@ let allScopeSnapshot = null;
 let knowledgeBaseSyncState = 'idle';
 let settingsStep = 0;
 let syncGuideVisible = false;
+let viewStateDbPromise = null;
+let pendingViewStateWrite = Promise.resolve();
 
 const activeTagFilters = new Set();
 const selectedNotes = new Set();
@@ -498,14 +507,14 @@ function setupFilterLayout() {
 }
 
 function applyProductCopy() {
-  document.querySelector('.brand-mark')?.setAttribute('alt', 'Get 笔记 Markdown 导出工具图标');
-  document.querySelector('.brand-copy h1') && (document.querySelector('.brand-copy h1').textContent = '把 Get 笔记带回你的写作流');
-  document.querySelector('.brand-copy p') && (document.querySelector('.brand-copy p').textContent = '同步、筛选、预览，再导出为 Markdown。适合备份、整理和迁移到自己的知识管理系统。');
+  document.querySelector('.brand-mark')?.setAttribute('alt', 'Get2MD 得到大脑内容导出整理工具图标');
+  document.querySelector('.brand-copy h1') && (document.querySelector('.brand-copy h1').textContent = '先确认要保留什么，再导出到你自己的系统');
+  document.querySelector('.brand-copy p') && (document.querySelector('.brand-copy p').textContent = 'Get2MD 会先把得到大脑里的内容整理到眼前，再让你筛选、预览、导出为 Markdown。适合备份、归档和迁移到自己的知识库与写作流。');
   const heroNote = document.querySelector('.hero-note');
-  if (heroNote) heroNote.textContent = '你的 API Key 和笔记内容只保存在当前浏览器。';
+  if (heroNote) heroNote.textContent = '你的 API Key 和笔记内容只保存在当前浏览器；先确认内容，再决定带走什么。';
 
   if (refreshBtn) refreshBtn.textContent = getSyncButtonLabel();
-  if (openSettingsBtn) openSettingsBtn.textContent = '接口设置';
+  if (openSettingsBtn) openSettingsBtn.textContent = '连接设置';
 
   const statLabels = document.querySelectorAll('.stat-label');
   if (statLabels[0]) statLabels[0].textContent = '已整理笔记';
@@ -516,7 +525,7 @@ function applyProductCopy() {
   const panelSubtitle = document.querySelector('.filters-panel .panel-subtitle');
   if (panelSubtitle) panelSubtitle.textContent = '先选知识库，再用标签和关键词缩小范围。';
   if (clearFiltersBtn) clearFiltersBtn.textContent = '清空筛选';
-  if (searchInput) searchInput.placeholder = '搜索标题、标签，或已经加载出的正文内容';
+  if (searchInput) searchInput.placeholder = '搜索标题、标签，或已经整理出的正文内容';
   document.getElementById('searchBtn') && (document.getElementById('searchBtn').textContent = '搜索');
   if (clearSearchBtn) clearSearchBtn.textContent = '清空搜索';
 
@@ -541,28 +550,28 @@ function applyProductCopy() {
   if (contentLabels[1]) contentLabels[1].textContent = 'AI 总结';
 
   const settingsTitle = document.querySelector('.settings-copy h2');
-  if (settingsTitle) settingsTitle.textContent = '先完成一次设置';
+  if (settingsTitle) settingsTitle.textContent = '先连接你的得到大脑内容';
   const settingsIntro = document.querySelector('.settings-copy p');
-  if (settingsIntro) settingsIntro.textContent = '填好两项信息，就可以开始同步。';
+  if (settingsIntro) settingsIntro.textContent = '只需要 API Key 和 Client ID 两项信息，就可以开始第一次整理。';
   if (closeSettingsBtn) closeSettingsBtn.textContent = '关闭';
 
   const guideTitle = document.querySelector('.settings-guide h3');
-  if (guideTitle) guideTitle.textContent = '准备这两项信息';
+  if (guideTitle) guideTitle.textContent = '准备好这两项信息';
   const guideList = document.querySelector('.settings-guide ol');
   if (guideList) {
     guideList.innerHTML = `
-      <li><a class="guide-link" href="https://www.biji.com/openapi?tab=clients" target="_blank" rel="noopener noreferrer">打开 Get 笔记开放平台<span class="link-badge">获取</span></a></li>
+      <li><a class="guide-link" href="https://www.biji.com/openapi?tab=clients" target="_blank" rel="noopener noreferrer">打开得到大脑开放平台<span class="link-badge">获取</span></a></li>
       <li>复制 API Key 和 Client ID。</li>
     `;
   }
   const memberNote = document.querySelector('.member-note');
   if (memberNote) {
-    memberNote.innerHTML = '开放平台能力需要 Get 笔记会员。还没有会员？<a href="https://www.biji.com/i/0D8SZ0N4E3?os=ANDROID&referral=0D8SZ0N4E3&trace=eyJzX3VzZXJfaWQiOjEyMDIwOCwic19lbnRpdHlfdHlwZSI6Imludml0ZV9yZWZlcnJhbCIsInNfZW50aXR5X2lkIjoiNjhlMDA0OWY4ZTM0ZmNiNGQ2NGQ1MWM1In0%3D&uid=XyZzEwqy" target="_blank" rel="noopener noreferrer">领取 3 天体验</a>。';
+    memberNote.innerHTML = '开放平台能力需要得到大脑会员。还没有会员？<a href="https://www.biji.com/i/0D8SZ0N4E3?os=ANDROID&referral=0D8SZ0N4E3&trace=eyJzX3VzZXJfaWQiOjEyMDIwOCwic19lbnRpdHlfdHlwZSI6Imludml0ZV9yZWZlcnJhbCIsInNfZW50aXR5X2lkIjoiNjhlMDA0OWY4ZTM0ZmNiNGQ2NGQ1MWM1In0%3D&uid=XyZzEwqy" target="_blank" rel="noopener noreferrer">领取 3 天体验</a>。';
   }
   const privacyNote = document.querySelector('.privacy-note');
-  if (privacyNote) privacyNote.textContent = '信息只保存在当前浏览器。';
+  if (privacyNote) privacyNote.textContent = '信息只保存在当前浏览器，本项目不会替你托管这些凭证。';
   const fieldHints = document.querySelectorAll('.field-hint');
-  if (fieldHints[0]) fieldHints[0].textContent = '从开放平台复制。';
+  if (fieldHints[0]) fieldHints[0].textContent = '从得到大脑开放平台复制。';
   if (fieldHints[1]) fieldHints[1].textContent = '和 API Key 同一处获取。';
   const settingsFoot = document.querySelector('.settings-foot .panel-subtitle');
   if (settingsFoot) settingsFoot.textContent = '';
@@ -633,7 +642,7 @@ function updateSettingsWizard() {
   const settingsFoot = document.querySelector('.settings-foot .panel-subtitle');
   const copyByStep = [
     ['准备信息', '需要 API Key 和 Client ID。'],
-    ['填 API Key', '从开放平台复制。'],
+    ['填 API Key', '从得到大脑开放平台复制。'],
     ['填 Client ID', '和 API Key 同一处获取。'],
     ['准备开始', '保存后会引导你去点击同步按钮。']
   ];
@@ -810,22 +819,22 @@ function hasSyncedNotes() {
 }
 
 function getSyncButtonLabel() {
-  return hasSyncedNotes() ? '同步最近笔记' : '同步过去所有笔记';
+  return hasSyncedNotes() ? '重新同步内容' : '开始整理我的内容';
 }
 
 function getFirstSyncButtonLabel() {
-  return '同步过去所有笔记';
+  return '开始整理我的内容';
 }
 
 function updateSyncGuideCopy() {
   const guide = document.getElementById('syncGuidePopover');
   if (!guide) return;
 
-  guide.querySelector('.sync-guide-title').textContent = '点这里同步你过去的笔记';
-  guide.querySelector('.sync-guide-copy').textContent = '第一次同步会整理你过去的笔记。完成后，就可以继续筛选、预览和导出了。';
+  guide.querySelector('.sync-guide-title').textContent = '先把内容整理到眼前';
+  guide.querySelector('.sync-guide-copy').textContent = '第一次整理会先同步你过去的内容。完成后，你就可以继续筛选、预览，并决定导出什么。';
   const goBtn = guide.querySelector('#syncGuideGoBtn');
   if (goBtn) {
-    goBtn.textContent = '现在去同步';
+    goBtn.textContent = '现在开始整理';
   }
 }
 
@@ -837,10 +846,10 @@ function ensureSyncGuide() {
   guide.className = 'sync-guide-popover';
   guide.innerHTML = `
     <div class="sync-guide-eyebrow">Next Step</div>
-    <div class="sync-guide-title">点这里同步你过去的笔记</div>
-    <div class="sync-guide-copy">第一次同步会整理你过去的笔记。完成后，就可以继续筛选、预览和导出了。</div>
+    <div class="sync-guide-title">先把内容整理到眼前</div>
+    <div class="sync-guide-copy">第一次整理会先同步你过去的内容。完成后，你就可以继续筛选、预览，并决定导出什么。</div>
     <div class="sync-guide-actions">
-      <button id="syncGuideGoBtn" class="btn btn-primary" type="button">现在去同步</button>
+      <button id="syncGuideGoBtn" class="btn btn-primary" type="button">现在开始整理</button>
       <button id="syncGuideDismissBtn" class="btn btn-secondary" type="button">我知道了</button>
     </div>
   `;
@@ -946,7 +955,7 @@ function saveViewState() {
       savedAt: new Date().toISOString()
     };
 
-    localStorage.setItem(STORAGE_KEYS.viewState, JSON.stringify(payload));
+    queueViewStateWrite(JSON.stringify(payload));
   } catch (error) {
     console.warn('save view state failed', error);
   }
@@ -954,10 +963,27 @@ function saveViewState() {
 
 function clearViewState() {
   localStorage.removeItem(STORAGE_KEYS.viewState);
+  deleteViewStateFromIndexedDb().catch(error => {
+    console.warn('clear indexedDB view state failed', error);
+  });
 }
 
-function restoreViewState() {
-  const raw = localStorage.getItem(STORAGE_KEYS.viewState);
+async function restoreViewState() {
+  let raw = '';
+
+  try {
+    raw = supportsIndexedDb() ? await readViewStateFromIndexedDb() : '';
+  } catch (error) {
+    console.warn('restore indexedDB view state failed', error);
+  }
+
+  if (!raw) {
+    raw = localStorage.getItem(STORAGE_KEYS.viewState) || '';
+    if (raw) {
+      queueViewStateWrite(raw);
+    }
+  }
+
   if (!raw) {
     return false;
   }
@@ -1043,23 +1069,127 @@ function getNoteDate(note) {
   return note.created_at ? note.created_at.slice(0, 10) : '';
 }
 
+function normalizeTextCandidate(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function pickFirstTextCandidate(candidates) {
+  return candidates.map(normalizeTextCandidate).find(Boolean) || '';
+}
+
+function getAttachmentTypeList(note) {
+  if (!Array.isArray(note?.attachments)) return [];
+  return note.attachments
+    .map(item => normalizeTextCandidate(item?.type || item?.file_type || item?.mime_type))
+    .filter(Boolean)
+    .map(type => type.toLowerCase());
+}
+
+function inferNoteShape(note) {
+  const noteType = normalizeTextCandidate(note?.note_type).toLowerCase();
+  const attachmentTypes = getAttachmentTypeList(note);
+  const hasAttachmentType = keyword => attachmentTypes.some(type => type.includes(keyword));
+  const hasWebPayload = note?.web_page && typeof note.web_page === 'object' && Object.keys(note.web_page).length > 0;
+  const hasAudioPayload = note?.audio && typeof note.audio === 'object' && Object.keys(note.audio).length > 0;
+  const hasVideoPayload = note?.video && typeof note.video === 'object' && Object.keys(note.video).length > 0;
+
+  if (hasWebPayload || noteType === 'link' || hasAttachmentType('link')) {
+    return 'web';
+  }
+
+  if (hasAudioPayload || noteType.includes('audio') || noteType.includes('voice') || noteType.includes('record') || hasAttachmentType('audio')) {
+    return 'audio';
+  }
+
+  if (hasVideoPayload || noteType.includes('video') || hasAttachmentType('video')) {
+    return 'video';
+  }
+
+  if (noteType === 'img_text' || noteType.includes('image') || hasAttachmentType('image')) {
+    return 'image';
+  }
+
+  return 'text';
+}
+
+function getExplicitOriginalContent(note) {
+  return pickFirstTextCandidate([
+    note?.audio?.original,
+    note?.audio?.transcript,
+    note?.audio?.transcription,
+    note?.audio?.text,
+    note?.video?.original,
+    note?.video?.transcript,
+    note?.video?.transcription,
+    note?.video?.text,
+    note?.transcript,
+    note?.transcription,
+    note?.original_content,
+    note?.original_text,
+    note?.source_content,
+    note?.source_text,
+    note?.web_page?.content
+  ]);
+}
+
+function getExplicitAiContent(note) {
+  return pickFirstTextCandidate([
+    note?.web_page?.excerpt,
+    note?.ai_summary,
+    note?.aiSummary,
+    note?.summary,
+    note?.digest,
+    note?.abstract,
+    note?.excerpt
+  ]);
+}
+
 function getOriginalContent(note) {
-  const audioOriginal = note.audio?.original || '';
-  if (audioOriginal) return audioOriginal;
+  const explicitOriginal = getExplicitOriginalContent(note);
+  if (explicitOriginal) return explicitOriginal;
 
-  const webOriginal = note.web_page?.content || '';
-  if (webOriginal) return webOriginal;
+  const shape = inferNoteShape(note);
+  if (shape === 'web' || shape === 'audio' || shape === 'video') {
+    return '';
+  }
 
-  return note.content || '';
+  return normalizeTextCandidate(note?.content);
 }
 
 function getAiContent(note) {
   const original = getOriginalContent(note);
+  const shape = inferNoteShape(note);
   const candidates = [
-    note.web_page?.excerpt || '',
-    note.content || ''
+    getExplicitAiContent(note),
+    (shape === 'web' || shape === 'audio' || shape === 'video') ? note?.content : ''
   ];
-  return candidates.find(candidate => candidate && candidate !== original) || '';
+  return candidates
+    .map(normalizeTextCandidate)
+    .find(candidate => candidate && candidate !== original) || '';
+}
+
+function getPreviewContent(note) {
+  return getOriginalContent(note) || getAiContent(note) || normalizeTextCandidate(note?.content);
+}
+
+function getOriginalContentLabel(note) {
+  const shape = inferNoteShape(note);
+  if (shape === 'web') return '网页原文';
+  if (shape === 'audio' || shape === 'video') return '文字记录';
+  return '原文内容';
+}
+
+function getAiContentLabel(note) {
+  return inferNoteShape(note) === 'web' ? 'AI 摘要' : 'AI 总结';
+}
+
+function syncDetailContentLabels(note) {
+  if (originalContentLabel) {
+    originalContentLabel.textContent = note ? getOriginalContentLabel(note) : '原文内容';
+  }
+  if (aiContentLabel) {
+    aiContentLabel.textContent = note ? getAiContentLabel(note) : 'AI 总结';
+  }
 }
 
 function getNoteImages(note) {
@@ -1257,7 +1387,7 @@ function updateStats() {
 
 function updateSettingsButtonLabel() {
   if (!openSettingsBtn) return;
-  openSettingsBtn.textContent = hasSavedConfig ? '接口设置' : '开始设置';
+  openSettingsBtn.textContent = hasSavedConfig ? '连接设置' : '开始设置';
 }
 
 function updateClearConfigVisibility() {
@@ -1287,7 +1417,7 @@ function updateLoadButtons() {
   }
 
   if (!hasSavedConfig) {
-    setInlineMeta('完成设置后，就可以开始同步和整理你的笔记。');
+    setInlineMeta('完成连接后，就可以开始第一次整理。');
     return;
   }
 
@@ -1546,7 +1676,7 @@ function renderNotes() {
   if (filteredNotes.length === 0) {
     if (allNotes.length === 0) {
       showEmpty(
-        hasSavedConfig ? '还没有结果' : '先完成接口设置',
+        hasSavedConfig ? '还没有结果' : '先完成连接设置',
         hasSavedConfig ? '当前范围还没有加载到笔记，或者知识库里暂时没有内容。' : '第一次使用时先保存 API Key 和 Client ID。',
         hasSavedConfig ? [
           {
@@ -1582,7 +1712,7 @@ function renderNotes() {
     const noteId = getNoteId(note);
     const tags = getTags(note);
     const topicEntries = getTopicEntries(note);
-    const summary = getOriginalContent(note) || '暂无摘要内容';
+    const summary = getPreviewContent(note) || '暂无摘要内容';
     const isSelected = selectedNotes.has(noteId);
 
     return `
@@ -1707,14 +1837,15 @@ function toggleSelection(noteId, checked) {
 
 function fillDetailPlaceholder() {
   currentNoteId = null;
-  detailTitle.textContent = '选择一条笔记开始预览';
+  detailTitle.textContent = '选择一条内容，先确认再导出';
   detailMeta.innerHTML = renderDetailMetaChips(['原文', 'AI 总结', '图片']);
   if (detailEmptyHint) detailEmptyHint.style.display = 'block';
   setDetailActionsEnabled(false);
   ensureDetailMediaContainer().innerHTML = '';
-  originalContent.textContent = '打开一条笔记后，这里会显示原文。';
+  syncDetailContentLabels(null);
+  originalContent.textContent = '打开一条内容后，这里会显示原文。';
   originalContent.classList.add('empty');
-  aiContent.textContent = '如果这条笔记有 AI 总结，这里会显示对应内容。';
+  aiContent.textContent = '如果这条内容有 AI 总结，这里会显示对应内容。';
   aiContent.classList.add('empty');
 }
 
@@ -1767,6 +1898,7 @@ function renderNoteDetail(note) {
   const original = getOriginalContent(note) || '暂无原文';
   const ai = getAiContent(note) || '暂无 AI 总结';
   const mediaGrid = ensureDetailMediaContainer();
+  syncDetailContentLabels(note);
 
   mediaGrid.innerHTML = images.map(image => `
     <a class="note-media-card" href="${escapeHtml(image.url)}" target="_blank" rel="noopener noreferrer">
@@ -1840,7 +1972,7 @@ async function apiGet(path, params = {}) {
   const apiKey = getApiKey();
   const clientId = getClientId();
   if (!apiKey || !clientId) {
-    throw new Error('请先完成接口设置');
+    throw new Error('请先完成连接设置');
   }
 
   const url = new URL(`${API_BASE}${path}`);
@@ -2037,23 +2169,128 @@ function mergeNotes(existingNotes, incomingNotes) {
 function prependFreshNotes(existingNotes, incomingNotes) {
   const seenIds = new Set(existingNotes.map(getNoteId).filter(Boolean));
   const freshNotes = [];
+  let hitExisting = false;
+  let pageNewCount = 0;
 
   for (const note of incomingNotes) {
     const noteId = getNoteId(note);
     if (noteId && seenIds.has(noteId)) {
-      break;
+      hitExisting = true;
+      continue;
     }
     if (noteId) {
       seenIds.add(noteId);
     }
     freshNotes.push(note);
+    pageNewCount += 1;
   }
 
   return {
     merged: freshNotes.length > 0 ? [...freshNotes, ...existingNotes] : [...existingNotes],
     addedCount: freshNotes.length,
-    hitExisting: freshNotes.length < incomingNotes.length
+    hitExisting,
+    pageNewCount
   };
+}
+
+function hasLatestPageDrift(localNotes, remoteNotes) {
+  const localIds = new Set((Array.isArray(localNotes) ? localNotes : []).map(getNoteId).filter(Boolean));
+  return (Array.isArray(remoteNotes) ? remoteNotes : []).some(note => {
+    const noteId = getNoteId(note);
+    return noteId && !localIds.has(noteId);
+  });
+}
+
+function supportsIndexedDb() {
+  return typeof window !== 'undefined' && 'indexedDB' in window;
+}
+
+function getViewStateDb() {
+  if (!supportsIndexedDb()) {
+    return Promise.reject(new Error('indexedDB unavailable'));
+  }
+
+  if (!viewStateDbPromise) {
+    viewStateDbPromise = new Promise((resolve, reject) => {
+      const request = window.indexedDB.open(VIEWSTATE_DB_NAME, VIEWSTATE_DB_VERSION);
+
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(VIEWSTATE_STORE_NAME)) {
+          db.createObjectStore(VIEWSTATE_STORE_NAME);
+        }
+      };
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error('open indexedDB failed'));
+    }).catch(error => {
+      viewStateDbPromise = null;
+      throw error;
+    });
+  }
+
+  return viewStateDbPromise;
+}
+
+async function readViewStateFromIndexedDb() {
+  const db = await getViewStateDb();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(VIEWSTATE_STORE_NAME, 'readonly');
+    const store = transaction.objectStore(VIEWSTATE_STORE_NAME);
+    const request = store.get(VIEWSTATE_RECORD_KEY);
+    request.onsuccess = () => resolve(typeof request.result === 'string' ? request.result : '');
+    request.onerror = () => reject(request.error || new Error('read indexedDB failed'));
+  });
+}
+
+async function writeViewStateToIndexedDb(raw) {
+  const db = await getViewStateDb();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(VIEWSTATE_STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(VIEWSTATE_STORE_NAME);
+    store.put(raw, VIEWSTATE_RECORD_KEY);
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error || new Error('write indexedDB failed'));
+    transaction.onabort = () => reject(transaction.error || new Error('write indexedDB aborted'));
+  });
+}
+
+async function deleteViewStateFromIndexedDb() {
+  if (!supportsIndexedDb()) return;
+  const db = await getViewStateDb();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(VIEWSTATE_STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(VIEWSTATE_STORE_NAME);
+    store.delete(VIEWSTATE_RECORD_KEY);
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error || new Error('delete indexedDB failed'));
+    transaction.onabort = () => reject(transaction.error || new Error('delete indexedDB aborted'));
+  });
+}
+
+function queueViewStateWrite(raw) {
+  pendingViewStateWrite = pendingViewStateWrite
+    .catch(() => {})
+    .then(async () => {
+      if (supportsIndexedDb()) {
+        try {
+          await writeViewStateToIndexedDb(raw);
+          localStorage.removeItem(STORAGE_KEYS.viewState);
+          return;
+        } catch (error) {
+          console.warn('indexedDB save view state failed, fallback to localStorage', error);
+        }
+      }
+
+      localStorage.setItem(STORAGE_KEYS.viewState, raw);
+    })
+    .catch(error => {
+      console.warn('save view state failed', error);
+    });
+}
+
+function flushPendingViewStateWrites() {
+  return pendingViewStateWrite.catch(() => {});
 }
 
 function resetLoadedNotesState() {
@@ -2142,6 +2379,7 @@ async function incrementalRefreshAllNotes() {
   let hasMore = true;
   let checkedPages = 0;
   let addedCount = 0;
+  let stalePages = 0;
 
   while (hasMore && checkedPages < 50) {
     const result = await getNoteList(cursor, PAGE_SIZE);
@@ -2151,7 +2389,13 @@ async function incrementalRefreshAllNotes() {
     mergedNotes = prependResult.merged;
     addedCount += prependResult.addedCount;
 
-    if (prependResult.hitExisting || result.notes.length === 0 || !result.hasMore || prependResult.addedCount === 0) {
+    if (prependResult.pageNewCount === 0) {
+      stalePages += 1;
+    } else {
+      stalePages = 0;
+    }
+
+    if (result.notes.length === 0 || !result.hasMore || stalePages >= 1) {
       break;
     }
 
@@ -2182,6 +2426,7 @@ async function incrementalRefreshAllNotes() {
   syncCurrentViewWithAllScopeSnapshot();
   applyFilters();
   saveViewState();
+  await flushPendingViewStateWrites();
 
   return {
     addedCount,
@@ -2259,7 +2504,7 @@ function finishLoading(successMessage) {
 
 async function loadInitialNotesForCurrentScope() {
   if (!hasSavedConfig || isLoadingNotes) {
-    return;
+    return false;
   }
 
   currentLoadToken += 1;
@@ -2271,7 +2516,7 @@ async function loadInitialNotesForCurrentScope() {
   try {
     if (activeKnowledgeBaseId) {
       const result = await getKnowledgeNotes(activeKnowledgeBaseId, 1);
-      if (token !== currentLoadToken) return;
+      if (token !== currentLoadToken) return false;
 
       replaceNotesForNewScope(result.notes);
       applyContextToLoadState({
@@ -2284,7 +2529,7 @@ async function loadInitialNotesForCurrentScope() {
       showStatus(`已加载 ${scopeName} 的首批 ${allNotes.length} 条笔记`, 'success');
     } else {
       const result = await getNoteList('0', PAGE_SIZE);
-      if (token !== currentLoadToken) return;
+      if (token !== currentLoadToken) return false;
 
       replaceNotesForNewScope(result.notes);
       applyContextToLoadState({
@@ -2301,15 +2546,17 @@ async function loadInitialNotesForCurrentScope() {
     applyFilters();
     finishLoading('首批结果已就绪');
     saveViewState();
+    await flushPendingViewStateWrites();
+    return true;
   } catch (error) {
-    if (token !== currentLoadToken) return;
+    if (token !== currentLoadToken) return false;
 
     finishLoading();
     showStatus(`加载失败: ${error.message}`);
     const title = activeKnowledgeBaseId ? '我的知识库加载失败' : '加载失败';
     const hint = activeKnowledgeBaseId
       ? '这个知识库的内容暂时没有加载出来，可以重试一次，或者先回到全部笔记。'
-      : '内容暂时没有加载出来，可以重试一次。如果连续失败，再检查 Get 笔记会员权限和开放平台凭证。';
+      : '内容暂时没有加载出来，可以重试一次。如果连续失败，再检查得到大脑会员权限和开放平台凭证。';
     showEmpty(title, hint, [
       {
         id: 'retrySync',
@@ -2330,6 +2577,7 @@ async function loadInitialNotesForCurrentScope() {
       }])
     ]);
     renderFilters();
+    return false;
   }
 }
 
@@ -2392,6 +2640,7 @@ async function continueLoadingCurrentFeed(options = {}) {
       finishLoading('加载完成');
     }
     saveViewState();
+    await flushPendingViewStateWrites();
   } catch (error) {
     finishLoading();
     showStatus(`同步更多内容失败: ${error.message}`);
@@ -2430,10 +2679,10 @@ async function loadAllRemainingForCurrentFeed() {
 
 async function refreshNotesForCurrentFilters() {
   pendingLoadAll = false;
-  await loadInitialNotesForCurrentScope();
+  return loadInitialNotesForCurrentScope();
 }
 
-async function refreshNotes() {
+async function refreshNotesLegacy() {
   hideSyncGuide({ markSeen: true });
 
   if (!hasSavedConfig) {
@@ -2449,7 +2698,10 @@ async function refreshNotes() {
   }
 
   if (!hasLocalSnapshot) {
-    await refreshNotesForCurrentFilters();
+    const loaded = await refreshNotesForCurrentFilters();
+    if (!loaded) {
+      return;
+    }
     if (loadState.hasMore) {
       await loadAllRemainingForCurrentFeed();
     }
@@ -2471,6 +2723,64 @@ async function refreshNotes() {
     finishLoading();
     showStatus(`增量同步失败: ${error.message}`);
   }
+}
+
+async function refreshNotesFullReload() {
+  hideSyncGuide({ markSeen: true });
+
+  if (!hasSavedConfig) {
+    showStatus('先完成设置，再同步你的笔记', 'info');
+    openSettings();
+    return;
+  }
+
+  if (ENABLE_KNOWLEDGE_BASE_FILTER) {
+    await loadOwnedKnowledgeBases({ preserveExisting: false });
+  }
+
+  const previousKnowledgeBaseId = activeKnowledgeBaseId;
+
+  try {
+    activeKnowledgeBaseId = '';
+    allScopeSnapshot = null;
+    applyContextToLoadState({
+      mode: 'all',
+      scopeName: getCurrentScopeName(),
+      cursor: '0',
+      page: 1,
+      hasMore: false,
+      totalHint: 0
+    });
+
+    const loaded = await refreshNotesForCurrentFilters();
+    if (!loaded) {
+      activeKnowledgeBaseId = previousKnowledgeBaseId;
+      renderFilters();
+      return;
+    }
+    if (loadState.hasMore) {
+      await loadAllRemainingForCurrentFeed();
+    }
+
+    if (previousKnowledgeBaseId) {
+      activeKnowledgeBaseId = previousKnowledgeBaseId;
+      syncCurrentViewWithAllScopeSnapshot();
+      applyFilters();
+      renderFilters();
+      saveViewState();
+      await flushPendingViewStateWrites();
+    }
+
+    showStatus('已重新同步最新笔记', 'success');
+  } catch (error) {
+    activeKnowledgeBaseId = previousKnowledgeBaseId;
+    renderFilters();
+    showStatus(`同步失败: ${error.message}`);
+  }
+}
+
+async function refreshNotes() {
+  await refreshNotesFullReload();
 }
 
 function runKeywordSearch() {
@@ -2525,6 +2835,8 @@ function buildMarkdown(note, mode = 'original') {
   const original = getOriginalContent(note);
   const ai = getAiContent(note);
   const images = getNoteImages(note);
+  const originalLabel = getOriginalContentLabel(note);
+  const aiLabel = getAiContentLabel(note);
   const lines = [
     `# ${title}`,
     '',
@@ -2536,9 +2848,9 @@ function buildMarkdown(note, mode = 'original') {
   ];
 
   if (mode === 'ai') {
-    lines.push('## AI 总结', '', ai || '暂无 AI 总结', '');
+    lines.push(`## ${aiLabel}`, '', ai || '暂无 AI 总结', '');
   } else {
-    lines.push('## 原文', '', original || '暂无原文', '');
+    lines.push(`## ${originalLabel}`, '', original || '暂无原文', '');
   }
 
   if (images.length > 0) {
@@ -2694,7 +3006,7 @@ async function batchDownload(mode = 'original') {
 
     const zipBlob = buildZip(files);
     const timestamp = new Date().toISOString().slice(0, 10);
-    downloadBlob(zipBlob, `Get笔记_${prefix}_${timestamp}.zip`);
+    downloadBlob(zipBlob, `得到大脑_${prefix}_${timestamp}.zip`);
     pulseFloatingSuccess('打包完成');
     showStatus(`已打包下载 ${files.length} 条${prefix}`, 'success');
   } catch (error) {
@@ -2907,7 +3219,7 @@ bindEvents();
 
   const configured = await checkConfig();
   if (configured) {
-    const restored = restoreViewState();
+    const restored = await restoreViewState();
     if (restored) {
       showStatus('已恢复上次浏览内容', 'success');
       renderFilters();
@@ -2931,7 +3243,7 @@ bindEvents();
       showSyncGuide();
     }
   } else {
-    showEmpty('先完成接口设置', '先保存 API Key 和 Client ID，然后就可以开始查看内容。', [
+    showEmpty('先完成连接设置', '先保存 API Key 和 Client ID，然后就可以开始查看内容。', [
       {
         id: 'settings',
         label: '开始设置',

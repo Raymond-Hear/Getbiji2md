@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Get2MD 工具页：同步、筛选、预览并导出你的 Get 笔记 Markdown 文件。">
-  <meta property="og:title" content="Get2MD 工具页｜同步并导出 Get 笔记">
-  <meta property="og:description" content="本地浏览器处理 API Key 和笔记内容，支持知识库、标签、关键词筛选与 Markdown 导出。">
+  <meta name="description" content="Get2MD 工具页：先把得到大脑内容整理到眼前，再筛选、预览并导出 Markdown。">
+  <meta property="og:title" content="Get2MD 工具页｜先整理，再导出得到大脑内容">
+  <meta property="og:description" content="连接得到大脑内容后，先筛选和确认，再把原文或 AI 总结导出到你自己的知识库。">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://get2md.lingfengraymond.top/app.html">
   <meta property="og:image" content="https://get2md.lingfengraymond.top/icons/icon512.png">
@@ -17,7 +17,7 @@
   <link rel="icon" type="image/png" sizes="48x48" href="icons/icon48.png">
   <link rel="icon" type="image/png" sizes="128x128" href="icons/icon128.png">
   <link rel="apple-touch-icon" href="icons/icon512.png">
-  <title>Get 笔记 Markdown 导出工具</title>
+  <title>Get2MD｜先整理，再导出得到大脑内容</title>
   <style>
     :root {
       --bg: #f3efe7;
@@ -1292,6 +1292,16 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
+      .guide-strip {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .guide-strip-actions,
+      .guide-strip .btn {
+        width: 100%;
+      }
+
       .hero-foot {
         flex-direction: column;
         align-items: flex-start;
@@ -1592,6 +1602,41 @@
       min-height: 42px;
       padding: 0 16px;
     }
+
+    .guide-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin: 0 0 22px;
+      padding: 18px 20px;
+      border: 1px solid rgba(23, 32, 29, 0.08);
+      border-radius: 8px;
+      background: rgba(255, 254, 250, 0.82);
+      box-shadow: 0 14px 32px rgba(15, 18, 20, 0.06);
+    }
+
+    .guide-strip-copy {
+      display: grid;
+      gap: 6px;
+    }
+
+    .guide-strip-copy strong {
+      font-size: 16px;
+    }
+
+    .guide-strip-copy p {
+      color: #6c7973;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .guide-strip-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
   </style>
 </head>
 <body>
@@ -1600,21 +1645,21 @@
       <section class="hero">
         <div class="hero-top">
           <div class="brand-line">
-            <img class="brand-mark" src="icons/icon128.png" alt="Get 笔记 Markdown 下载工具图标">
+            <img class="brand-mark" src="icons/icon128.png" alt="Get2MD 得到大脑内容导出整理工具图标">
             <div class="brand-copy hero-copy">
               <div class="hero-kicker">
-                <span class="eyebrow">Get Notes</span>
+                <span class="eyebrow">For Dedao Brain</span>
                 <span class="hero-badge">V0.1 Open Source</span>
               </div>
-              <h1>把 Get 笔记带回你的写作流</h1>
-              <p>同步、筛选、预览，再导出为 Markdown。适合备份、整理和迁移到自己的知识管理系统。</p>
-              <div class="hero-note">你的 API Key 和笔记内容只保存在当前浏览器。</div>
+              <h1>先确认要保留什么，再导出到你自己的系统</h1>
+              <p>Get2MD 会先把得到大脑里的内容整理到眼前，再让你筛选、预览、导出为 Markdown。适合备份、归档和迁移到自己的知识库与写作流。</p>
+              <div class="hero-note">你的 API Key 和笔记内容只保存在当前浏览器；先确认内容，再决定带走什么。</div>
             </div>
           </div>
           <div class="topbar-actions">
             <a class="btn btn-secondary" href="index.html">返回介绍</a>
-            <button id="openSettingsBtn" class="btn btn-secondary" onclick="window.__getNotesApp?.openSettings()">接口设置</button>
-            <button id="refreshBtn" class="btn btn-primary" onclick="window.__getNotesApp?.refreshNotes()">同步过去所有笔记</button>
+            <button id="openSettingsBtn" class="btn btn-secondary" onclick="window.__getNotesApp?.openSettings()">连接设置</button>
+            <button id="refreshBtn" class="btn btn-primary" onclick="window.__getNotesApp?.refreshNotes()">开始整理我的内容</button>
           </div>
         </div>
         <div class="hero-foot">
@@ -1634,10 +1679,10 @@
           </div>
           <div class="hero-meta">
             <div class="credit-line">
-              created by <a href="https://github.com/Raymond-Hear" target="_blank" rel="noopener noreferrer">聆风Raymond</a>
+              维护者：<a href="https://github.com/Raymond-Hear" target="_blank" rel="noopener noreferrer">聆风Raymond</a>
             </div>
             <div class="version-note">
-              V0.1 开源测试版 · 面向本地优先的 Get 笔记导出工作流 · <a href="https://github.com/Raymond-Hear/Getbiji2md" target="_blank" rel="noopener noreferrer">查看项目源码</a>
+              V0.1 开源测试版 · 面向得到大脑内容整理的本地优先工具 · <a href="https://github.com/Raymond-Hear/Getbiji2md" target="_blank" rel="noopener noreferrer">查看项目源码</a>
             </div>
           </div>
         </div>
@@ -1646,24 +1691,36 @@
       <section class="workflow-strip" aria-label="使用流程">
         <article class="workflow-step">
           <span>1</span>
-          <strong>设置</strong>
-          <p>填入开放平台信息。</p>
+          <strong>连接</strong>
+          <p>填入 API Key 和 Client ID。</p>
         </article>
         <article class="workflow-step">
           <span>2</span>
-          <strong>同步</strong>
-          <p>拉取你的笔记内容。</p>
+          <strong>整理</strong>
+          <p>先把内容拉到当前列表。</p>
         </article>
         <article class="workflow-step">
           <span>3</span>
           <strong>筛选</strong>
-          <p>按标签、关键词缩小范围。</p>
+          <p>按知识库、标签和关键词聚焦。</p>
         </article>
         <article class="workflow-step">
           <span>4</span>
           <strong>导出</strong>
-          <p>下载原文或 AI 总结。</p>
+          <p>带走原文或 AI 总结。</p>
         </article>
+      </section>
+
+      <section class="guide-strip" aria-label="常见整理入口">
+        <div class="guide-strip-copy">
+          <strong>不确定从哪种整理任务开始？</strong>
+          <p>可以直接从最常见的三类任务入手：按知识库收拢、保留原文与摘要，或筛选后批量导出。</p>
+        </div>
+        <div class="guide-strip-actions">
+          <a class="btn btn-secondary" href="help.html#knowledge-base-export">按知识库整理</a>
+          <a class="btn btn-secondary" href="help.html#original-and-summary">保留原文与摘要</a>
+          <a class="btn btn-secondary" href="help.html#batch-export">批量导出</a>
+        </div>
       </section>
 
       <div id="tool" class="shell tool-anchor">
@@ -1680,7 +1737,7 @@
             <div id="statusBar" class="status-bar"></div>
 
             <div class="search-row">
-              <input type="text" id="searchInput" placeholder="搜索标题、标签，或已经加载出的正文内容">
+              <input type="text" id="searchInput" placeholder="搜索标题、标签，或已经整理出的正文内容">
               <button id="searchBtn" class="btn btn-primary">搜索</button>
               <button id="clearSearchBtn" class="btn btn-secondary">清空搜索</button>
             </div>
@@ -1742,7 +1799,7 @@
             <div id="notesContainer" class="notes-container">
               <div class="empty-state">
                 <h3>还没有加载笔记</h3>
-                <p>先完成设置，再同步你的内容，就可以开始筛选、预览和导出。</p>
+                <p>先完成连接，再开始第一次整理。同步后你就能在这里筛选、预览，并决定要带走哪些内容。</p>
               </div>
             </div>
 
@@ -1756,9 +1813,9 @@
             <span class="detail-label">Preview</span>
             <button id="backBtn" class="btn btn-ghost back-btn">返回列表</button>
           </div>
-          <h2 class="detail-title" id="detailTitle">选择一条笔记开始预览</h2>
+          <h2 class="detail-title" id="detailTitle">选择一条内容，先确认再导出</h2>
           <div class="detail-meta" id="detailMeta">这里会显示类型、日期、知识库和标签。</div>
-          <div id="detailEmptyHint" class="detail-empty-hint">先从左侧笔记列表打开一条内容，再选择下载原文或 AI 总结。</div>
+          <div id="detailEmptyHint" class="detail-empty-hint">先从左侧打开一条内容，确认原文和 AI 总结，再决定导出哪一部分。</div>
 
           <div class="detail-export-label">导出这条笔记</div>
           <div class="detail-actions">
@@ -1784,8 +1841,8 @@
     <div class="settings-modal">
       <div class="settings-head">
         <div class="settings-copy">
-          <h2>先完成一次设置</h2>
-          <p>填好两项信息，就可以开始同步。</p>
+          <h2>先连接你的得到大脑内容</h2>
+          <p>只需要 API Key 和 Client ID 两项信息，就可以开始第一次整理。</p>
         </div>
         <button id="closeSettingsBtn" class="btn btn-ghost" onclick="window.__getNotesApp?.closeSettings()">关闭</button>
       </div>
@@ -1796,21 +1853,21 @@
         <span class="settings-step-dot" data-settings-dot="3"></span>
       </div>
       <div class="settings-guide settings-step is-active" data-settings-step="0">
-        <h3>准备这两项信息</h3>
+        <h3>准备好这两项信息</h3>
         <ol>
-          <li><a class="guide-link" href="https://www.biji.com/openapi?tab=clients" target="_blank" rel="noopener noreferrer">打开 Get 笔记开放平台<span class="link-badge">获取</span></a></li>
+          <li><a class="guide-link" href="https://www.biji.com/openapi?tab=clients" target="_blank" rel="noopener noreferrer">打开得到大脑开放平台<span class="link-badge">获取</span></a></li>
           <li>复制 API Key 和 Client ID。</li>
         </ol>
-        <p class="member-note">开放平台能力需要 Get 笔记会员。还没有会员？<a href="https://www.biji.com/i/0D8SZ0N4E3?os=ANDROID&referral=0D8SZ0N4E3&trace=eyJzX3VzZXJfaWQiOjEyMDIwOCwic19lbnRpdHlfdHlwZSI6Imludml0ZV9yZWZlcnJhbCIsInNfZW50aXR5X2lkIjoiNjhlMDA0OWY4ZTM0ZmNiNGQ2NGQ1MWM1In0%3D&uid=XyZzEwqy" target="_blank" rel="noopener noreferrer">领取 3 天体验</a>。</p>
+        <p class="member-note">开放平台能力需要得到大脑会员。还没有会员？<a href="https://www.biji.com/i/0D8SZ0N4E3?os=ANDROID&referral=0D8SZ0N4E3&trace=eyJzX3VzZXJfaWQiOjEyMDIwOCwic19lbnRpdHlfdHlwZSI6Imludml0ZV9yZWZlcnJhbCIsInNfZW50aXR5X2lkIjoiNjhlMDA0OWY4ZTM0ZmNiNGQ2NGQ1MWM1In0%3D&uid=XyZzEwqy" target="_blank" rel="noopener noreferrer">领取 3 天体验</a>。</p>
       </div>
       <div class="privacy-note settings-step is-active" data-settings-step="0">
-        信息只保存在当前浏览器。
+        信息只保存在当前浏览器，本项目不会替你托管这些凭证。
       </div>
       <div class="settings-form">
         <div class="field settings-step" data-settings-step="1">
           <label for="apiKeyInput">API Key</label>
           <input type="password" id="apiKeyInput" placeholder="gk_live_xxx">
-          <div class="field-hint">从开放平台复制。</div>
+          <div class="field-hint">从得到大脑开放平台复制。</div>
         </div>
         <div class="field settings-step" data-settings-step="2">
           <label for="clientIdInput">Client ID</label>
@@ -1818,8 +1875,8 @@
           <div class="field-hint">和 API Key 同一处获取。</div>
         </div>
         <div class="settings-step settings-step-card" data-settings-step="3">
-          <h3>开始同步</h3>
-          <p>保存后会自动加载你的笔记。</p>
+          <h3>开始第一次整理</h3>
+          <p>保存后会自动开始同步，把内容整理到当前页面。</p>
         </div>
       </div>
       <div id="settingsStepError" class="settings-step-error" role="alert"></div>

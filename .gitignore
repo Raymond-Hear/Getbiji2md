@@ -1,3 +1,5 @@
 .claude/
 *.local.json
 docs/private/
+.tmp-edge-home/
+docs/skills/

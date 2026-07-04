@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Get2MD 常见问题：同步失败、429、知识库筛选、图片导出和本地配置说明。">
-  <meta property="og:title" content="Get2MD 常见问题">
-  <meta property="og:description" content="遇到同步、筛选、导出或配置问题时，先看这份简短自查说明。">
+  <meta name="description" content="Get2MD 帮助中心：查看得到大脑内容导出的常见问题，以及知识库整理、原文与摘要导出、批量导出的使用说明。">
+  <meta property="og:title" content="Get2MD 帮助中心">
+  <meta property="og:description" content="遇到同步、筛选、导出问题时先看这里，也可以快速找到知识库整理、原文与摘要导出、批量导出的入口。">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://get2md.lingfengraymond.top/help.html">
   <meta property="og:image" content="https://get2md.lingfengraymond.top/icons/icon512.png">
@@ -17,7 +17,7 @@
   <link rel="icon" type="image/png" sizes="48x48" href="icons/icon48.png">
   <link rel="icon" type="image/png" sizes="128x128" href="icons/icon128.png">
   <link rel="apple-touch-icon" href="icons/icon512.png">
-  <title>常见问题｜Get2MD</title>
+  <title>帮助中心｜Get2MD</title>
   <style>
     :root {
       --bg: #131718;
@@ -175,6 +175,43 @@
       margin-top: 22px;
     }
 
+    .section-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .chip-link {
+      display: inline-flex;
+      align-items: center;
+      min-height: 38px;
+      padding: 0 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.06);
+      color: #edf0eb;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .section-block {
+      margin-top: 22px;
+    }
+
+    .section-title {
+      margin-bottom: 10px;
+      font-size: 28px;
+      line-height: 1.15;
+    }
+
+    .section-lead {
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.85;
+    }
+
     .card {
       padding: 22px;
       border-radius: var(--radius);
@@ -245,18 +282,24 @@
     </nav>
 
     <section class="hero">
-      <span class="eyebrow">Help</span>
-      <h1>遇到问题，先从这里排查</h1>
-      <p class="lead">这份说明只保留用户真正会遇到的几类问题：同步、限流、知识库筛选、图片导出和本地配置。</p>
+      <span class="eyebrow">Help Center</span>
+      <h1>先解决常见问题，再找到当前功能最常用的整理入口</h1>
+      <p class="lead">这里集中整理了导出时最常见的问题，以及你现在就能在 Get2MD 里用上的三类整理方式。</p>
+      <div class="section-links" aria-label="帮助页快速入口">
+        <a class="chip-link" href="#faq-overview">常见问题</a>
+        <a class="chip-link" href="#knowledge-base-export">知识库整理</a>
+        <a class="chip-link" href="#original-and-summary">原文与摘要</a>
+        <a class="chip-link" href="#batch-export">批量导出</a>
+      </div>
     </section>
 
-    <section class="faq" aria-label="常见问题列表">
+    <section id="faq-overview" class="faq" aria-label="常见问题列表">
       <article class="card">
         <h2>同步失败怎么办？</h2>
         <ul>
           <li>确认你已经填写 API Key 和 Client ID。</li>
-          <li>确认当前 Get 账号有开放平台能力和会员权限。</li>
-          <li>如果刚刚失败，可以等一会儿再点“同步过去所有笔记”或“同步最近笔记”。</li>
+          <li>确认当前得到大脑账号有开放平台能力和会员权限。</li>
+          <li>如果刚刚失败，可以等一会儿再点“开始整理我的内容”或“重新同步内容”。</li>
         </ul>
       </article>
 
@@ -267,7 +310,7 @@
 
       <article class="card">
         <h2>为什么“我的知识库”是空的？</h2>
-        <p>请先同步一次笔记和知识库。如果仍然为空，可能是开放平台暂时没有返回你的个人知识库列表，笔记列表仍可以按标签和关键词筛选。</p>
+        <p>请先同步一次内容和知识库。如果仍然为空，可能是开放平台暂时没有返回你的个人知识库列表，笔记列表仍可以按标签和关键词筛选。</p>
       </article>
 
       <article class="card">
@@ -277,7 +320,7 @@
 
       <article class="card">
         <h2>刷新页面后还要重新加载吗？</h2>
-        <p>工具会尽量恢复上次加载结果、筛选、选中项和详情。清理浏览器数据后，需要重新填写接口设置。</p>
+        <p>工具会尽量恢复上次加载结果、筛选、选中项和详情。清理浏览器数据后，需要重新填写连接设置。</p>
       </article>
 
       <article class="card">
@@ -287,6 +330,50 @@
     </section>
 
     <p class="note">如果需要提交问题，请使用 <a href="https://github.com/Raymond-Hear/Getbiji2md/issues" target="_blank" rel="noopener noreferrer">GitHub Issue</a>。</p>
+    <section id="knowledge-base-export" class="section-block" aria-label="知识库内容整理说明">
+      <h2 class="section-title">知识库内容整理</h2>
+      <p class="section-lead">如果你的内容已经分散在不同知识库里，最省力的方式通常不是整库导出，而是先按知识库进入，再结合标签和关键词把范围收紧。</p>
+      <div class="faq">
+        <article class="card">
+          <h2>适合什么时候用？</h2>
+          <p>当你想按主题、项目或资料来源分批整理内容，而不是把所有内容一次性混在一起处理时。</p>
+        </article>
+        <article class="card">
+          <h2>建议怎么开始？</h2>
+          <p>先连接 API Key，再同步内容；如果知识库选项已经出现，就优先从知识库筛选开始，再叠加标签和关键词。</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="original-and-summary" class="section-block" aria-label="原文与摘要导出说明">
+      <h2 class="section-title">原文与摘要导出</h2>
+      <p class="section-lead">Get2MD 更适合用来先预览，再决定保留原文、图片相关内容，还是只保留 AI 总结。这样导出的结果会更干净，也更适合后续归档。</p>
+      <div class="faq">
+        <article class="card">
+          <h2>这里能整理什么？</h2>
+          <p>最直接的是原文、图片相关内容和 AI 总结。适合先打开详情确认，再决定下载哪一部分。</p>
+        </article>
+        <article class="card">
+          <h2>什么时候更适合导出？</h2>
+          <p>当你需要长期备份、离线归档，或者准备迁移到 Obsidian、Notion 或本地文件夹时。</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="batch-export" class="section-block" aria-label="批量导出说明">
+      <h2 class="section-title">筛选后批量导出</h2>
+      <p class="section-lead">如果你不是想导出单篇，而是想把一批相关内容一起带走，最适合的方式是先筛选，再批量下载，不用一篇篇重复操作。</p>
+      <div class="faq">
+        <article class="card">
+          <h2>这里能帮你做什么？</h2>
+          <p>帮助你把同一批主题内容集中选中，再一次性导出原文或 AI 总结，适合阶段性备份和专题归档。</p>
+        </article>
+        <article class="card">
+          <h2>建议怎么用？</h2>
+          <p>先用知识库、标签、关键词把结果缩到足够小，再使用“选择当前结果”做批量导出，会更顺手。</p>
+        </article>
+      </div>
+    </section>
   </main>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>

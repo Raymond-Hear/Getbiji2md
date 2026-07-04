@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Get 笔记录屏演示</title>
+  <style>
+    :root {
+      --paper: #f5efe5;
+      --paper-strong: #fffdf8;
+      --ink: #24180d;
+      --muted: #6f6254;
+      --line: rgba(36, 24, 13, 0.10);
+      --brand: #246a65;
+      --brand-deep: #184f4b;
+      --accent: #a35a24;
+      --brand-soft: rgba(36, 106, 101, 0.12);
+      --accent-soft: rgba(163, 90, 36, 0.14);
+      --shadow: 0 28px 80px rgba(53, 33, 16, 0.16);
+      --radius-xl: 28px;
+      --radius-lg: 20px;
+      --radius-md: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      font-family: "Segoe UI", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 14% 18%, rgba(36, 106, 101, 0.18), transparent 24%),
+        radial-gradient(circle at 84% 16%, rgba(163, 90, 36, 0.18), transparent 22%),
+        linear-gradient(180deg, #fffaf3 0%, var(--paper) 58%, #eadcca 100%);
+    }
+
+    .frame {
+      position: relative;
+      width: min(1360px, calc(100vw - 28px));
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+      border-radius: 34px;
+      border: 1px solid rgba(255, 255, 255, 0.86);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.14));
+      box-shadow: 0 48px 120px rgba(45, 33, 24, 0.22);
+      backdrop-filter: blur(18px);
+    }
+
+    .ambient::before,
+    .ambient::after {
+      content: "";
+      position: absolute;
+      border-radius: 999px;
+      filter: blur(18px);
+      pointer-events: none;
+      animation: drift 16s ease-in-out infinite alternate;
+    }
+
+    .ambient::before {
+      width: 420px;
+      height: 420px;
+      left: -110px;
+      bottom: -120px;
+      background: radial-gradient(circle, rgba(36, 106, 101, 0.16), transparent 66%);
+    }
+
+    .ambient::after {
+      width: 380px;
+      height: 380px;
+      right: -110px;
+      top: -120px;
+      background: radial-gradient(circle, rgba(163, 90, 36, 0.18), transparent 68%);
+      animation-duration: 19s;
+    }
+
+    .header {
+      position: absolute;
+      left: 28px;
+      top: 24px;
+      right: 28px;
+      z-index: 4;
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .header-copy {
+      max-width: 520px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      width: fit-content;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 13px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.74);
+      border: 1px solid rgba(255, 255, 255, 0.84);
+      color: var(--brand-deep);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(28px, 3vw, 46px);
+      line-height: 1.04;
+      letter-spacing: -0.04em;
+    }
+
+    .header-copy p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 46px;
+      padding: 0 16px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid rgba(255, 255, 255, 0.88);
+      box-shadow: 0 12px 28px rgba(62, 45, 29, 0.10);
+      font-size: 14px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .stage {
+      position: absolute;
+      inset: 126px 24px 24px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 248px;
+      gap: 20px;
+      align-items: stretch;
+    }
+
+    .browser-shell {
+      position: relative;
+      min-width: 0;
+      border-radius: 28px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.82);
+      background: rgba(255, 252, 246, 0.96);
+      box-shadow: var(--shadow);
+    }
+
+    .browser-bar {
+      height: 58px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 0 18px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 249, 242, 0.96);
+    }
+
+    .browser-dots {
+      display: flex;
+      gap: 8px;
+    }
+
+    .browser-dots span {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ddcebf;
+    }
+
+    .address {
+      flex: 1;
+      min-width: 0;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(36, 24, 13, 0.08);
+      background: rgba(255, 255, 255, 0.88);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .window {
+      position: absolute;
+      inset: 58px 0 0;
+      background:
+        radial-gradient(circle at top left, rgba(163, 90, 36, 0.08), transparent 28%),
+        radial-gradient(circle at top right, rgba(36, 106, 101, 0.10), transparent 26%),
+        linear-gradient(180deg, #fbf6ee 0%, #f0e6d9 100%);
+    }
+
+    .app {
+      position: absolute;
+      inset: 18px;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 16px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 18px 20px;
+      border-radius: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.78);
+      background: rgba(255, 252, 247, 0.74);
+      box-shadow: 0 18px 38px rgba(53, 33, 16, 0.10);
+      backdrop-filter: blur(14px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .brand img {
+      width: 48px;
+      height: 48px;
+      border-radius: 16px;
+      box-shadow: 0 12px 26px rgba(53, 33, 16, 0.16);
+    }
+
+    .brand strong {
+      display: block;
+      font-size: 24px;
+      line-height: 1.2;
+    }
+
+    .brand span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 0 18px;
+      border-radius: 14px;
+      border: 1px solid rgba(36, 24, 13, 0.10);
+      background: rgba(255, 255, 255, 0.74);
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 800;
+      box-shadow: 0 12px 22px rgba(53, 33, 16, 0.06);
+      transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .btn.primary {
+      background: var(--brand);
+      color: #f8fffe;
+      border-color: rgba(24, 79, 75, 0.18);
+      box-shadow: 0 16px 32px rgba(36, 106, 101, 0.18);
+    }
+
+    .btn.accent {
+      background: var(--accent);
+      color: #fffaf5;
+      border-color: rgba(125, 66, 23, 0.18);
+      box-shadow: 0 16px 32px rgba(163, 90, 36, 0.16);
+    }
+
+    .btn.is-highlighted {
+      animation: pulse 1.8s ease-out infinite;
+    }
+
+    .content {
+      display: grid;
+      grid-template-columns: 360px minmax(0, 1fr);
+      gap: 16px;
+      min-height: 0;
+    }
+
+    .panel,
+    .detail {
+      border-radius: 26px;
+      border: 1px solid rgba(255, 255, 255, 0.76);
+      background: rgba(255, 252, 247, 0.74);
+      box-shadow: 0 18px 38px rgba(53, 33, 16, 0.10);
+      backdrop-filter: blur(14px);
+    }
+
+    .panel {
+      padding: 18px;
+      display: grid;
+      grid-template-rows: auto auto auto 1fr;
+      gap: 14px;
+    }
+
+    .detail {
+      padding: 18px;
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      gap: 14px;
+    }
+
+    .card {
+      padding: 15px 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.78);
+      border: 1px solid rgba(36, 24, 13, 0.08);
+    }
+
+    .section-title {
+      font-size: 13px;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .search-input {
+      margin-top: 10px;
+      height: 42px;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(36, 24, 13, 0.08);
+      background: rgba(255, 255, 255, 0.90);
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 34px;
+      padding: 0 12px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      background: var(--brand-soft);
+      color: var(--brand-deep);
+      font-size: 13px;
+      font-weight: 700;
+      transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .chip.active {
+      background: var(--accent-soft);
+      color: var(--accent);
+      border-color: rgba(163, 90, 36, 0.24);
+      transform: translateY(-1px);
+    }
+
+    .hint-text {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .note-item {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+      padding: 14px 15px;
+      border-radius: 18px;
+      border: 1px solid rgba(36, 24, 13, 0.08);
+      background: rgba(255, 255, 255, 0.86);
+      transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .note-item.active {
+      transform: translateY(-2px);
+      border-color: rgba(36, 106, 101, 0.24);
+      box-shadow: 0 16px 28px rgba(36, 106, 101, 0.10);
+    }
+
+    .note-head {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .note-head strong {
+      font-size: 16px;
+      line-height: 1.45;
+    }
+
+    .note-date {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .note-summary {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .detail-title {
+      font-size: 24px;
+      font-weight: 800;
+      line-height: 1.3;
+    }
+
+    .detail-meta {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+      margin-top: 8px;
+    }
+
+    .content-line {
+      height: 14px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(36, 106, 101, 0.18), rgba(163, 90, 36, 0.10));
+    }
+
+    .content-line + .content-line {
+      margin-top: 10px;
+    }
+
+    .content-line.short {
+      width: 62%;
+    }
+
+    .content-line.mid {
+      width: 80%;
+    }
+
+    .download-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .settings-modal {
+      position: absolute;
+      top: 92px;
+      left: 50%;
+      width: 420px;
+      padding: 22px;
+      border-radius: 26px;
+      border: 1px solid rgba(255, 255, 255, 0.84);
+      background: rgba(255, 252, 247, 0.98);
+      box-shadow: 0 30px 80px rgba(40, 28, 20, 0.20);
+      transform: translateX(-50%) scale(0.95);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      z-index: 6;
+    }
+
+    .settings-modal.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(-50%) scale(1);
+    }
+
+    .settings-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .settings-head h3 {
+      margin: 0;
+      font-size: 24px;
+    }
+
+    .settings-head p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .field {
+      padding: 14px;
+      border-radius: 18px;
+      border: 1px solid rgba(36, 24, 13, 0.08);
+      background: rgba(255, 255, 255, 0.88);
+    }
+
+    .field + .field {
+      margin-top: 12px;
+    }
+
+    .field-label {
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .field-input {
+      height: 42px;
+      margin-top: 9px;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(36, 24, 13, 0.08);
+      background: #fffdfa;
+      color: var(--ink);
+      font-size: 14px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .field-input.focused {
+      border-color: rgba(36, 106, 101, 0.28);
+      box-shadow: 0 0 0 4px rgba(36, 106, 101, 0.08);
+    }
+
+    .settings-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .sync-guide {
+      position: absolute;
+      top: 92px;
+      right: 22px;
+      width: 270px;
+      padding: 16px;
+      border-radius: 22px;
+      background: rgba(255, 253, 248, 0.98);
+      border: 1px solid rgba(255, 255, 255, 0.86);
+      box-shadow: 0 24px 52px rgba(62, 45, 29, 0.16);
+      opacity: 0;
+      transform: translateY(-8px);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      z-index: 5;
+    }
+
+    .sync-guide.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .sync-guide::before {
+      content: "";
+      position: absolute;
+      top: -8px;
+      right: 48px;
+      width: 16px;
+      height: 16px;
+      background: inherit;
+      border-top: 1px solid rgba(255, 255, 255, 0.86);
+      border-left: 1px solid rgba(255, 255, 255, 0.86);
+      transform: rotate(45deg);
+    }
+
+    .sync-guide strong {
+      display: block;
+      font-size: 18px;
+    }
+
+    .sync-guide p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .cursor {
+      position: absolute;
+      left: 0;
+      top: 0;
+      z-index: 8;
+      width: 24px;
+      height: 30px;
+      pointer-events: none;
+      transform: translate(0, 0);
+      transition: transform 0.8s cubic-bezier(.2, .8, .2, 1);
+    }
+
+    .cursor svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+      filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.18));
+    }
+
+    .cursor::after {
+      content: "";
+      position: absolute;
+      left: 2px;
+      top: 4px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: rgba(36, 106, 101, 0.20);
+      transform: scale(0);
+      opacity: 0;
+    }
+
+    .cursor.clicking::after {
+      animation: clickPulse 0.45s ease-out;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .timeline-card {
+      padding: 16px 14px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.80);
+      background: rgba(255, 252, 247, 0.84);
+      box-shadow: 0 18px 38px rgba(53, 33, 16, 0.10);
+      opacity: 0.55;
+      transition: transform 0.2s ease, opacity 0.2s ease, border-color 0.2s ease;
+    }
+
+    .timeline-card.active {
+      opacity: 1;
+      transform: translateY(-2px);
+      border-color: rgba(36, 106, 101, 0.22);
+    }
+
+    .timeline-step {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 12px;
+      background: var(--brand-soft);
+      color: var(--brand-deep);
+      font-weight: 800;
+      margin-bottom: 10px;
+    }
+
+    .timeline-card strong {
+      display: block;
+      font-size: 15px;
+      line-height: 1.4;
+    }
+
+    .timeline-card p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .progress {
+      position: absolute;
+      left: 24px;
+      right: 24px;
+      bottom: 16px;
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.42);
+      overflow: hidden;
+      z-index: 4;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, var(--brand), var(--accent));
+      transition: width 0.8s ease;
+    }
+
+    .download-toast {
+      position: absolute;
+      right: 28px;
+      bottom: 32px;
+      z-index: 7;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255, 253, 248, 0.96);
+      border: 1px solid rgba(255, 255, 255, 0.84);
+      box-shadow: 0 20px 44px rgba(62, 45, 29, 0.14);
+      transform: translateY(18px);
+      opacity: 0;
+      transition: transform 0.25s ease, opacity 0.25s ease;
+      font-size: 14px;
+    }
+
+    .download-toast.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .download-toast strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    @keyframes drift {
+      from { transform: translate3d(0, 0, 0) scale(1); }
+      to { transform: translate3d(14px, 18px, 0) scale(1.07); }
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(36, 106, 101, 0.22); }
+      70% { box-shadow: 0 0 0 18px rgba(36, 106, 101, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(36, 106, 101, 0); }
+    }
+
+    @keyframes clickPulse {
+      0% { transform: scale(0.2); opacity: 0.9; }
+      100% { transform: scale(1.8); opacity: 0; }
+    }
+
+    @media (max-width: 1120px) {
+      .stage {
+        grid-template-columns: 1fr;
+      }
+
+      .timeline {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 860px) {
+      body {
+        display: block;
+      }
+
+      .frame {
+        width: 100vw;
+        min-height: 100vh;
+        border-radius: 0;
+        aspect-ratio: auto;
+      }
+
+      .header {
+        position: relative;
+        left: auto;
+        top: auto;
+        right: auto;
+        padding: 22px 18px 0;
+        align-items: start;
+        flex-direction: column;
+      }
+
+      .stage {
+        position: relative;
+        inset: auto;
+        padding: 18px 18px 80px;
+      }
+
+      .content {
+        grid-template-columns: 1fr;
+      }
+
+      .timeline {
+        grid-template-columns: 1fr;
+      }
+
+      .settings-modal {
+        width: calc(100% - 24px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="ambient"></div>
+
+    <div class="header">
+      <div class="header-copy">
+        <div class="eyebrow">Screen Demo</div>
+        <h1>把第一次使用的关键动作，做成一段像录屏的演示</h1>
+        <p>这个页面不再是宣传海报，而是直接模拟真实操作路径：打开设置、填写 API、保存、同步、筛选、打开详情、下载原文。</p>
+      </div>
+      <div class="status-chip" id="statusChip">步骤 1/7：打开设置</div>
+    </div>
+
+    <div class="stage">
+      <div class="browser-shell">
+        <div class="browser-bar">
+          <div class="browser-dots">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <div class="address">file:///Getbiji2MD/app.html</div>
+        </div>
+
+        <div class="window">
+          <div class="app">
+            <div class="topbar">
+              <div class="brand">
+                <img src="../../icons/icon128.png" alt="Get 笔记工具图标">
+                <div>
+                  <strong>Get 笔记 Markdown 导出工具</strong>
+                  <span>同步、筛选、预览并导出你的 Get 笔记</span>
+                </div>
+              </div>
+              <div class="top-actions">
+                <button class="btn" id="settingsBtn">设置</button>
+                <button class="btn primary" id="syncBtn">同步我的笔记</button>
+              </div>
+            </div>
+
+            <div class="content">
+              <aside class="panel">
+                <div class="card">
+                  <div class="section-title">搜索与筛选</div>
+                  <div class="search-input">搜索标题、标签，或已经加载出的正文内容</div>
+                </div>
+
+                <div class="card">
+                  <div class="section-title">标签筛选</div>
+                  <div class="chip-row">
+                    <span class="chip" id="tagExport">导出</span>
+                    <span class="chip" id="tagMarkdown">Markdown</span>
+                    <span class="chip" id="tagWorkflow">工作流</span>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="section-title">当前提示</div>
+                  <div class="hint-text" id="inlineHint">第一次使用时，先点右上角“设置”，填好 API Key 和 Client ID。</div>
+                </div>
+
+                <div class="card">
+                  <div class="section-title">结果列表</div>
+                  <article class="note-item" id="noteCard">
+                    <div class="note-head">
+                      <strong>Get 笔记原文下载方案整理</strong>
+                      <span class="note-date">2026-05-23</span>
+                    </div>
+                    <div class="note-summary">这篇笔记记录了原文导出、标签筛选、批量打包和使用说明的完整整理方案。</div>
+                    <div class="chip-row" style="margin-top: 0;">
+                      <span class="chip">导出</span>
+                      <span class="chip">Markdown</span>
+                    </div>
+                  </article>
+                </div>
+              </aside>
+
+              <section class="detail">
+                <div class="card">
+                  <div class="section-title">笔记详情</div>
+                  <div class="detail-title">Get 笔记原文下载方案整理</div>
+                  <div class="detail-meta" id="detailMeta">类型：原文笔记 · 标签：导出 / Markdown · 当前状态：等待同步后查看完整内容</div>
+                </div>
+
+                <div class="card">
+                  <div class="section-title">原文预览</div>
+                  <div class="content-line"></div>
+                  <div class="content-line mid"></div>
+                  <div class="content-line"></div>
+                  <div class="content-line short"></div>
+                  <div class="content-line"></div>
+                </div>
+
+                <div class="card">
+                  <div class="section-title">AI 总结</div>
+                  <div class="content-line mid"></div>
+                  <div class="content-line"></div>
+                  <div class="content-line short"></div>
+                </div>
+
+                <div class="download-row">
+                  <button class="btn primary">下载原文</button>
+                  <button class="btn accent">下载 AI 总结</button>
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <div class="settings-modal" id="settingsModal">
+            <div class="settings-head">
+              <div>
+                <h3>先完成一次设置</h3>
+                <p>填好 API Key 和 Client ID，下一步就可以去同步笔记。</p>
+              </div>
+              <button class="btn" style="min-height: 38px; padding: 0 14px;">关闭</button>
+            </div>
+
+            <div class="field">
+              <div class="field-label">API Key</div>
+              <div class="field-input" id="apiField">gk_live_xxx</div>
+            </div>
+            <div class="field">
+              <div class="field-label">Client ID</div>
+              <div class="field-input" id="clientField">cli_xxx</div>
+            </div>
+            <div class="settings-actions">
+              <button class="btn primary" id="saveBtn">保存并继续</button>
+            </div>
+          </div>
+
+          <div class="sync-guide" id="syncGuide">
+            <strong>下一步点这里同步</strong>
+            <p>配置已经保存好了。点一下“同步我的笔记”，就会开始加载你的内容。</p>
+          </div>
+
+          <div class="download-toast" id="downloadToast">
+            <strong>下载已开始</strong>
+            <span>Get笔记_原文_2026-05-23.md</span>
+          </div>
+
+          <div class="cursor" id="cursor">
+            <svg viewBox="0 0 24 30" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M4 2.8L18.8 17.1L12.1 17.5L15.5 27.2L11.4 28.5L8 18.8L3.6 23.8L4 2.8Z" fill="#fffdfa" stroke="#1d1611" stroke-width="1.2" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <aside class="timeline">
+        <article class="timeline-card active">
+          <div class="timeline-step">1</div>
+          <strong>打开设置</strong>
+          <p>鼠标先点右上角“设置”，进入第一次配置。</p>
+        </article>
+        <article class="timeline-card">
+          <div class="timeline-step">2</div>
+          <strong>填写 API</strong>
+          <p>依次聚焦 API Key 和 Client ID，表现真实输入动作。</p>
+        </article>
+        <article class="timeline-card">
+          <div class="timeline-step">3</div>
+          <strong>保存配置</strong>
+          <p>保存后不自动同步，而是明确引导去点击同步按钮。</p>
+        </article>
+        <article class="timeline-card">
+          <div class="timeline-step">4</div>
+          <strong>点击同步</strong>
+          <p>右上角按钮被高亮，用户按引导开始同步。</p>
+        </article>
+        <article class="timeline-card">
+          <div class="timeline-step">5</div>
+          <strong>筛选标签</strong>
+          <p>同步完成后，点标签把结果收窄到需要的内容。</p>
+        </article>
+        <article class="timeline-card">
+          <div class="timeline-step">6</div>
+          <strong>打开详情</strong>
+          <p>点击笔记卡片，右侧出现详情与预览内容。</p>
+        </article>
+        <article class="timeline-card">
+          <div class="timeline-step">7</div>
+          <strong>下载原文</strong>
+          <p>最后点“下载原文”，形成一个完整闭环。</p>
+        </article>
+      </aside>
+    </div>
+
+    <div class="progress">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+  </div>
+
+  <script>
+    const statusChip = document.getElementById("statusChip");
+    const progressBar = document.getElementById("progressBar");
+    const cursor = document.getElementById("cursor");
+    const settingsModal = document.getElementById("settingsModal");
+    const syncGuide = document.getElementById("syncGuide");
+    const downloadToast = document.getElementById("downloadToast");
+    const syncBtn = document.getElementById("syncBtn");
+    const tagExport = document.getElementById("tagExport");
+    const noteCard = document.getElementById("noteCard");
+    const apiField = document.getElementById("apiField");
+    const clientField = document.getElementById("clientField");
+    const inlineHint = document.getElementById("inlineHint");
+    const detailMeta = document.getElementById("detailMeta");
+    const timelineCards = Array.from(document.querySelectorAll(".timeline-card"));
+
+    const steps = [
+      {
+        label: "步骤 1/7：打开设置",
+        x: 838,
+        y: 204,
+        click: true,
+        apply() {
+          settingsModal.classList.add("visible");
+          inlineHint.textContent = "先把 API Key 和 Client ID 填好，保存后会引导去同步。";
+        }
+      },
+      {
+        label: "步骤 2/7：填写 API Key",
+        x: 489,
+        y: 380,
+        click: true,
+        apply() {
+          apiField.classList.add("focused");
+          clientField.classList.remove("focused");
+        }
+      },
+      {
+        label: "步骤 3/7：填写 Client ID",
+        x: 488,
+        y: 462,
+        click: true,
+        apply() {
+          apiField.classList.remove("focused");
+          clientField.classList.add("focused");
+        }
+      },
+      {
+        label: "步骤 4/7：保存配置",
+        x: 535,
+        y: 544,
+        click: true,
+        apply() {
+          clientField.classList.remove("focused");
+          settingsModal.classList.remove("visible");
+          syncGuide.classList.add("visible");
+          syncBtn.classList.add("is-highlighted");
+          inlineHint.textContent = "配置已保存。下一步点右上角“同步我的笔记”。";
+        }
+      },
+      {
+        label: "步骤 5/7：点击同步",
+        x: 975,
+        y: 204,
+        click: true,
+        apply() {
+          syncGuide.classList.remove("visible");
+          syncBtn.classList.remove("is-highlighted");
+          inlineHint.textContent = "首批笔记已经同步下来，现在可以开始按标签筛选。";
+          detailMeta.textContent = "类型：原文笔记 · 标签：导出 / Markdown · 当前状态：已同步，可继续筛选和下载";
+        }
+      },
+      {
+        label: "步骤 6/7：筛选标签",
+        x: 160,
+        y: 500,
+        click: true,
+        apply() {
+          tagExport.classList.add("active");
+          inlineHint.textContent = "标签“导出”已经选中，结果范围进一步缩小。";
+        }
+      },
+      {
+        label: "步骤 7/7：打开详情并下载原文",
+        x: 720,
+        y: 626,
+        click: true,
+        apply() {
+          noteCard.classList.add("active");
+          inlineHint.textContent = "打开详情后，可以直接点“下载原文”或“下载 AI 总结”。";
+          detailMeta.textContent = "类型：原文笔记 · 标签：导出 / Markdown · 当前状态：详情已打开，可下载";
+
+          setTimeout(() => {
+            moveCursor(965, 702, true);
+            setTimeout(() => {
+              downloadToast.classList.add("visible");
+              statusChip.textContent = "演示完成：已经走完整个首次使用闭环";
+            }, 850);
+          }, 900);
+        }
+      }
+    ];
+
+    function moveCursor(x, y, clicking = false) {
+      cursor.style.transform = `translate(${x}px, ${y}px)`;
+      if (clicking) {
+        cursor.classList.remove("clicking");
+        void cursor.offsetWidth;
+        cursor.classList.add("clicking");
+      }
+    }
+
+    function activateStep(index) {
+      const step = steps[index];
+      timelineCards.forEach((card, cardIndex) => {
+        card.classList.toggle("active", cardIndex === index);
+      });
+      statusChip.textContent = step.label;
+      progressBar.style.width = `${((index + 1) / steps.length) * 100}%`;
+      moveCursor(step.x, step.y, step.click);
+      step.apply();
+    }
+
+    function resetScene() {
+      settingsModal.classList.remove("visible");
+      syncGuide.classList.remove("visible");
+      downloadToast.classList.remove("visible");
+      syncBtn.classList.remove("is-highlighted");
+      tagExport.classList.remove("active");
+      noteCard.classList.remove("active");
+      apiField.classList.remove("focused");
+      clientField.classList.remove("focused");
+      inlineHint.textContent = "第一次使用时，先点右上角“设置”，填好 API Key 和 Client ID。";
+      detailMeta.textContent = "类型：原文笔记 · 标签：导出 / Markdown · 当前状态：等待同步后查看完整内容";
+    }
+
+    let currentStep = 0;
+    resetScene();
+    activateStep(0);
+
+    setInterval(() => {
+      if (currentStep >= steps.length - 1) {
+        currentStep = 0;
+        resetScene();
+        setTimeout(() => activateStep(currentStep), 300);
+        return;
+      }
+
+      currentStep += 1;
+      activateStep(currentStep);
+    }, 2600);
+  </script>
+</body>
+</html>

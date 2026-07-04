@@ -1,7 +1,7 @@
 {
-  "name": "Get2MD",
+  "name": "Get2MD for 得到大脑",
   "short_name": "Get2MD",
-  "description": "Local-first Get notes Markdown export tool.",
+  "description": "Local-first Markdown export tool for 得到大脑 content.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
