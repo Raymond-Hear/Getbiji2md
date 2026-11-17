@@ -1,151 +1,74 @@
-# Get 笔记 Markdown 下载工具
+<div align="center">
 
-一个本地优先的 Get 笔记导出工具。它可以作为公开网页访问，也可以下载到本地或自行部署使用。
+# Get2MD
 
-这个项目当前不做登录、不做数据库、不做云端同步。你填写的 `API Key` 和 `Client ID` 只保存在当前浏览器本地，笔记内容也在你的浏览器里完成读取、整理和下载。
+<img src="icons/icon128.png" width="88" height="88" alt="Get2MD 图标">
 
-如果你在 **Get 笔记** 里已经记了很多内容，迟早会碰到一个很现实的问题：
+**把得到大脑笔记的原文或 AI 总结导出为 Markdown。**
 
-这些笔记我想下载下来，尤其是我自己写的原文。
+[![静态网页](https://img.shields.io/badge/Browser-Static%20web-46655a)](#本地运行)
+[![本地优先](https://img.shields.io/badge/Storage-Local-75543d)](#隐私)
+[![MIT License](https://img.shields.io/badge/License-MIT-235e52)](LICENSE)
 
-但在很多时候，你更容易拿到的是 AI 处理后的内容，而不是那份真正想保存、想整理、想继续使用的原文。
+[下载源码 ZIP](https://github.com/Raymond-Hear/Getbiji2md/archive/refs/heads/main.zip) · [开始使用](#开始使用) · [导出文件](#导出文件) · [反馈问题](https://github.com/Raymond-Hear/Getbiji2md/issues)
 
-这个工具就是专门为这件事做的。
+</div>
 
-它的重点不是泛泛地“导出笔记”，而是把 **Get 笔记里的原文内容真正下载下来**，并保存成 Markdown 文件。你也可以按知识库、标签、关键词去找，再批量勾选、批量打包下载。
+## 它能做什么
 
-## 它能帮你做什么
+想给读书笔记留一份本地备份？同步得到大脑后，选中对应知识库，按标签、笔记类型、日期或关键词找出需要的内容。点开笔记，可以先看原文、图片和已有的 AI 总结。
 
-- 下载笔记原文为 Markdown
-- 下载 AI 总结为 Markdown
-- 批量打包下载
-- 按知识库筛选
-- 按标签筛选
-- 按关键词搜索
-- 筛选后选择当前结果
-- 点击笔记里的知识库或标签快速筛选
-- 预览内容
-- 查看单篇笔记
-- 下载单篇笔记
+单篇直接下载为 Markdown。勾选多篇后，可以批量下载原文或 AI 总结，得到一个装有独立 Markdown 文件的 ZIP 包。解压后可放进本地文件夹，或导入支持 Markdown 的笔记工具。
 
-## 当前产品形态
+## 开始使用
 
-这是一个轻量 MVP，不是 SaaS 平台。
+1. 下载并解压源码，双击 `index.html`，再点「打开导出工具」。也可以通过下方的 [本地运行](#本地运行) 启动。
+2. 用得到大脑会员账号进入开放平台，获取 `API Key` 和 `Client ID`。 [得到大脑开放平台](https://www.biji.com/openapi?tab=clients) · [官方说明](https://doc.biji.com/docs/AGhfwzioqiHbv4kbObjcuStnnBg)
+3. 在工具页点「开始设置」，填入并保存两项凭证，再点「同步笔记」。首批笔记出现后就可以筛选和预览。
+4. 打开单篇，或勾选多篇。点击「下载原文」或「下载 AI 总结」。
 
-- 无需注册账号
-- 无需登录本工具
-- 无需数据库
-- 可作为公开网页托管
-- 也可下载后本地打开
-- 凭证保存在用户自己的浏览器里
-- 项目方不保存你的 API Key、Client ID 或笔记内容
+### 同步选项
 
-更完整的产品规划见 [PRD](docs/PRD.md)，开发进度见 [项目进度](docs/PROGRESS.md)。
+| 操作 | 适合什么时候用 |
+| --- | --- |
+| 同步笔记 | 第一次读取历史笔记。 |
+| 继续同步 | 暂停或关闭页面后，从当前浏览器保存的进度接着读取。 |
+| 检查最近更新 | 读取近期新增或修改的笔记。 |
+| 完整重新同步 | 重新核对全部历史笔记和删除记录。 |
 
-如果使用时遇到同步、筛选或导出问题，可以先看 [常见问题](help.html)。
+工具会在接口限流时等待后重试。额度耗尽时会暂停并保存进度。更多细节见 [同步与筛选说明](docs/SYNC-AND-TYPE-FILTERS.md)。
 
-如果你平时会把内容放进 Obsidian、Notion、本地文件夹，或者只是想把自己在 Get 笔记里真正写下来的内容留一份在手里，这个工具会很顺手。
+## 导出文件
 
-## 开始之前先确认
+| 选择 | 下载结果 |
+| --- | --- |
+| 一篇笔记 | 一个 `.md` 文件 |
+| 多篇笔记 | 一个 `.zip` 压缩包，每篇对应一个 `.md` 文件 |
 
-你需要准备这三样东西：
+Markdown 包括笔记标题、日期、类型、标签和归属知识库，以及你选择的原文或 AI 总结。图文笔记会尽量保留原图链接，查看时需要能访问原地址。
 
-- 一个 **Get 笔记会员账号**
-- 你的 `API Key`
-- 你的 `Client ID`
+## 隐私
 
-这里有个前提要先说清楚：
+浏览器直接向得到大脑开放平台请求笔记。连接凭证、已读取的笔记和同步进度保存在当前浏览器。你可以在工具页的「连接设置」中清除本地配置和笔记缓存。
 
-根据 Get 笔记官方开放平台文档，**开放 API 能力面向 Get 笔记会员提供**。如果你不是会员，相关接口通常没法正常使用，这个工具也就无法正常工作。
+`API Key` 和 `Client ID` 都是敏感信息。公开反馈时，请遮盖凭证并移除私人笔记内容。
 
-官方入口和文档：
+## 本地运行
 
-- [Get 笔记开放平台](https://www.biji.com/openapi)
-- [Get 笔记 API 文档](https://doc.biji.com/docs/WOxgwObNNiyMHWk1dl0cJqSxnEd/)
-- [Get 笔记知识库 OpenAPI 快速上手](https://doc.biji.com/docs/WLUjwn3noiPMBWkFOPkcTqcnn6e)
-- [Get 笔记 AI 技能和开放平台](https://doc.biji.com/docs/AGhfwzioqiHbv4kbObjcuStnnBg)
+项目是静态网页。解压后可以用浏览器打开 `index.html`，也可以在项目目录用 Node.js 启动本地服务。
 
-如果你现在还不是会员，也可以先试用一下：
+```sh
+node tests/preview-server.cjs
+```
 
-- [通过这个邀请链接领取 Get 笔记新人会员 3 天体验](https://www.biji.com/i/0D8SZ0N4E3?os=ANDROID&referral=0D8SZ0N4E3&trace=eyJzX3VzZXJfaWQiOjEyMDIwOCwic19lbnRpdHlfdHlwZSI6Imludml0ZV9yZWZlcnJhbCIsInNfZW50aXR5X2lkIjoiNjhlMDA0OWY4ZTM0ZmNiNGQ2NGQ1MWM1In0%3D&uid=XyZzEwqy)
+启动后，在浏览器打开 `http://127.0.0.1:8766/`。如果要自行部署，可以把项目放到支持静态网页的托管服务。
 
-如果你只是想先体验一下这个工具，或者先看看自己的账号能不能正常走通开放平台流程，这会是一个更轻的开始方式。
+同步与筛选测试可以用以下命令运行。
 
-## Client ID 和 API Key 怎么拿
+```sh
+node --test tests/sync.test.cjs
+```
 
-如果你之前没接触过开放平台，按下面这个顺序来就够了：
+## 关于作者
 
-1. 打开 [Get 笔记开放平台](https://www.biji.com/openapi?tab=clients)
-2. 登录你的 Get 账号
-3. 找到「Get 笔记 Skill & Cli」官方默认授权应用
-4. 点击「生成 Key」，保存：
-   - `API Key`
-   - `Client ID`
-5. 回到这个工具里填写并保存
-
-如果你想先看官方说明，再回来操作，也可以先看：
-
-- [API 文档总览](https://doc.biji.com/docs/WOxgwObNNiyMHWk1dl0cJqSxnEd/)
-- [Skill 使用指南](https://doc.biji.com/docs/HHuAwoyLpiboVHk75SfcdKc7n4d)
-- [CLI 使用指南](https://doc.biji.com/docs/RotowC78viiHOdkQrJtcha5Fnvh/)
-
-有一句一定要提醒：
-
-`API Key` 是敏感信息。不要发给别人，也不要写进公开仓库、截图、教程或者聊天记录里。
-
-## 怎么使用
-
-整个流程很简单：
-
-1. 打开这个网页
-2. 点击 `接口设置`
-3. 填入你的 `API Key` 和 `Client ID`
-4. 保存设置
-5. 第一次点击“开始整理我的内容”，把历史笔记拉到当前浏览器
-6. 后续需要刷新时，点击“重新同步内容”重新整理最新结果
-7. 用关键词、知识库、标签筛出你想要的内容
-8. 勾选要导出的笔记
-9. 选择下载原文，或者下载 AI 总结
-
-## 同步说明
-
-- 第一次使用时，工具会显示“开始整理我的内容”，用于整理你之前的历史内容。
-- 本地已经有同步结果后，按钮会切换成“重新同步内容”，重新从得到大脑接口整理最新结果。
-- 这样可以避免浏览器里的旧快照长期停留在过期内容上。
-
-如果你只下载一篇，它会直接给你一个 `.md` 文件。  
-如果你一次选了多篇，它会自动打成一个 `.zip` 压缩包，里面每条笔记都会对应一个独立的 Markdown 文件。
-
-## 反馈问题和参与改进
-
-当前版本是 V0.1 开源测试版。如果你遇到问题，可以在 GitHub [提交 Issue](https://github.com/Raymond-Hear/Getbiji2md/issues)；如果你想直接改进功能或体验，也欢迎 [提交 PR](https://github.com/Raymond-Hear/Getbiji2md/pulls)。
-
-反馈时请不要贴真实 API Key、Client ID、Token 或完整笔记内容。页面错误提示、浏览器、设备和你正在做的操作，一般就足够定位问题。
-
-## 它最适合这些场景
-
-- 你想把 Get 笔记里的原文长期留在自己手里
-- 你想把某个知识库里的笔记批量整理出来
-- 你想按标签或关键词找出一批内容，再统一下载
-- 你想把笔记继续放进自己的写作流、知识管理流或备份系统里
-
-## 隐私说明
-
-网站里也提供了面向普通用户的独立隐私说明页：[privacy.html](privacy.html)。
-
-这个工具不会把你的 `API Key` 和 `Client ID` 写进仓库文件。
-
-当前版本会把你填写的配置保存在**当前浏览器本地**，这样你下次打开时不用重新填写。你可以在设置里一键清除本地保存的配置。
-
-所以也建议你只在自己信任的设备上使用它。
-
-如果你准备把这个项目部署到自己的环境里，也记得不要把这些内容传到公开位置：
-
-- 真实的 `API Key`
-- `Client ID`
-- Token
-- 本地配置文件
-
-## License
-
-本项目采用 [MIT License](LICENSE) 开源。
+Get2MD 由 [聆风 Raymond](https://github.com/Raymond-Hear) 维护，采用 [MIT 许可证](LICENSE) 开源。

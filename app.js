@@ -16,18 +16,28 @@ const RATE_LIMIT_STATUS = 429;
 const PAGE_SIZE = 20;
 const MAX_RETRIES = 4;
 const RETRY_DELAY_MS = 1500;
-const LOAD_ALL_STEP_DELAY_MS = 850;
+const REQUEST_INTERVAL_MS = 1100;
+const NOTE_TYPES = {
+  text: '文本笔记', audio: '录音笔记', web: '链接笔记',
+  image: '图文笔记', video: '视频笔记', other: '其他笔记'
+};
+const DATE_PRESETS = {
+  month: { label: '近一个月', months: 1 },
+  quarter: { label: '近三个月', months: 3 },
+  year: { label: '近一年', years: 1 }
+};
 
 const detailView = document.getElementById('detailView');
+const detailStatus = document.getElementById('detailStatus');
+const loadedCount = document.getElementById('loadedCount');
+const visibleCount = document.getElementById('visibleCount');
+const selectedCountHero = document.getElementById('selectedCountHero');
 const notesContainer = document.getElementById('notesContainer');
 const loadMoreContainer = document.getElementById('loadMoreContainer');
 const batchActions = document.getElementById('batchActions');
 const selectedCount = document.getElementById('selectedCount');
 const selectFilteredNotes = document.getElementById('selectFilteredNotes');
 const selectFilteredNotesLabel = document.getElementById('selectFilteredNotesLabel');
-const selectedCountHero = document.getElementById('selectedCountHero');
-const loadedCount = document.getElementById('loadedCount');
-const visibleCount = document.getElementById('visibleCount');
 const batchDownloadBtn = document.getElementById('batchDownloadBtn');
 const batchDownloadAiBtn = document.getElementById('batchDownloadAiBtn');
 const apiKeyInput = document.getElementById('apiKeyInput');
@@ -67,11 +77,23 @@ let keyword = '';
 let hasSavedConfig = false;
 let isLoadingNotes = false;
 let isLoadingKnowledgeBases = false;
-let pendingLoadAll = false;
-let currentLoadToken = 0;
 let knowledgeSearchKeyword = '';
 let tagSearchKeyword = '';
+let activeDatePreset = '';
+let customDateStart = '';
+let customDateEnd = '';
 let activeKnowledgeBaseId = '';
+let activeNoteType = '';
+let syncSession = null;
+let syncRunning = false;
+let syncPauseRequested = false;
+let syncGeneration = 0;
+let syncWaitMessage = '';
+let syncWaitController = null;
+let requestQueue = Promise.resolve();
+let nextRequestAt = 0;
+let requestIntervalMs = REQUEST_INTERVAL_MS;
+let viewStateSaveTimer = null;
 let allScopeSnapshot = null;
 let knowledgeBaseSyncState = 'idle';
 let settingsStep = 0;
@@ -92,340 +114,7 @@ const loadState = {
   totalHint: 0
 };
 
-detailView?.classList.add('active');
-
-injectEnhancementStyles();
 setupFilterLayout();
-applyProductCopy();
-applyEnvironmentCopy();
-
-function injectEnhancementStyles() {
-  const style = document.createElement('style');
-  style.textContent = `
-    .filters-grid {
-      align-items: start;
-    }
-
-    .filters-grid {
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    }
-
-    .filter-toolbar {
-      margin-top: 14px;
-      padding: 12px 14px;
-      border-radius: 18px;
-      border: 1px solid rgba(106, 79, 53, 0.12);
-      background: rgba(255, 255, 255, 0.58);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
-    .filter-toolbar-left {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-      min-width: 0;
-      flex: 1 1 280px;
-    }
-
-    .filter-toolbar-badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 7px 10px;
-      border-radius: 999px;
-      background: rgba(36, 106, 101, 0.08);
-      color: var(--teal);
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      white-space: nowrap;
-    }
-
-    .filter-actions-row {
-      flex: 0 0 auto;
-    }
-
-    .filter-inline-meta {
-      min-height: 20px;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.6;
-      white-space: normal;
-    }
-
-    .filter-option.is-active {
-      border-color: var(--brand);
-      background: rgba(163, 90, 36, 0.08);
-    }
-
-    .active-filter-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      border-style: solid;
-    }
-
-    .active-filter-chip .chip-remove {
-      display: inline-grid;
-      place-items: center;
-      width: 16px;
-      height: 16px;
-      border-radius: 999px;
-      background: rgba(32, 25, 19, 0.08);
-      font-size: 13px;
-      line-height: 1;
-    }
-
-    .active-filter-chip:hover .chip-remove {
-      background: rgba(32, 25, 19, 0.14);
-    }
-
-    .topic-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 7px 10px;
-      border-radius: 999px;
-      background: rgba(36, 106, 101, 0.08);
-      color: var(--teal);
-      font-size: 12px;
-      line-height: 1;
-      margin-right: 8px;
-      margin-bottom: 8px;
-    }
-
-    button.topic-badge {
-      border: 0;
-      font: inherit;
-      cursor: pointer;
-      transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
-    }
-
-    button.topic-badge:hover,
-    button.topic-badge:focus-visible {
-      background: rgba(36, 106, 101, 0.14);
-      box-shadow: inset 0 0 0 1px rgba(36, 106, 101, 0.14);
-      transform: translateY(-1px);
-      outline: none;
-    }
-
-    .note-scope-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 12px;
-      margin-bottom: 4px;
-    }
-
-    .note-tag-trigger.is-active {
-      border-color: rgba(163, 90, 36, 0.42);
-      background: rgba(163, 90, 36, 0.16);
-      box-shadow: inset 0 0 0 1px rgba(163, 90, 36, 0.08);
-    }
-
-    .floating-loader {
-      position: fixed;
-      right: 24px;
-      bottom: 24px;
-      z-index: 120;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      min-width: 180px;
-      max-width: 260px;
-      padding: 12px 14px;
-      border-radius: 16px;
-      border: 1px solid rgba(106, 79, 53, 0.12);
-      background: rgba(255, 253, 249, 0.96);
-      box-shadow: 0 16px 36px rgba(65, 46, 29, 0.14);
-      opacity: 0;
-      pointer-events: none;
-      transform: translateY(10px);
-      transition: opacity 0.2s ease, transform 0.2s ease;
-    }
-
-    .floating-loader.visible {
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    .floating-loader.success .floating-loader-ring {
-      border-color: rgba(36, 106, 101, 0.22);
-      color: var(--teal);
-    }
-
-    .floating-loader-ring {
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      border: 2px solid rgba(163, 90, 36, 0.14);
-      border-top-color: var(--brand);
-      animation: spin 0.8s linear infinite;
-      flex: 0 0 auto;
-    }
-
-    .floating-loader.success .floating-loader-ring {
-      animation: none;
-      display: grid;
-      place-items: center;
-      border-width: 2px;
-    }
-
-    .floating-loader.success .floating-loader-ring::before {
-      content: "\\2713";
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    .sync-guide-popover {
-      position: fixed;
-      z-index: 320;
-      width: min(320px, calc(100vw - 32px));
-      padding: 16px 16px 14px;
-      border-radius: 20px;
-      border: 1px solid rgba(255, 255, 255, 0.78);
-      background: rgba(255, 253, 249, 0.98);
-      box-shadow: 0 22px 50px rgba(65, 46, 29, 0.16);
-      opacity: 0;
-      pointer-events: none;
-      transform: translateY(-6px);
-      transition: opacity 0.2s ease, transform 0.2s ease;
-    }
-
-    .sync-guide-popover.visible {
-      opacity: 1;
-      pointer-events: auto;
-      transform: translateY(0);
-    }
-
-    .sync-guide-popover::after {
-      content: "";
-      position: absolute;
-      top: -8px;
-      right: 34px;
-      width: 16px;
-      height: 16px;
-      background: inherit;
-      border-top: 1px solid rgba(255, 255, 255, 0.78);
-      border-left: 1px solid rgba(255, 255, 255, 0.78);
-      transform: rotate(45deg);
-    }
-
-    .sync-guide-eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      background: rgba(36, 106, 101, 0.10);
-      color: var(--teal);
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .sync-guide-title {
-      margin-top: 12px;
-      font-size: 18px;
-      font-weight: 800;
-      color: var(--text);
-    }
-
-    .sync-guide-copy {
-      margin-top: 8px;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.7;
-    }
-
-    .sync-guide-actions {
-      display: flex;
-      gap: 10px;
-      margin-top: 14px;
-      flex-wrap: wrap;
-    }
-
-    .btn-attention {
-      position: relative;
-      box-shadow: 0 0 0 0 rgba(36, 106, 101, 0.26);
-      animation: syncPulse 1.8s ease-out infinite;
-    }
-
-    @keyframes syncPulse {
-      0% {
-        box-shadow: 0 0 0 0 rgba(36, 106, 101, 0.26);
-      }
-
-      70% {
-        box-shadow: 0 0 0 14px rgba(36, 106, 101, 0);
-      }
-
-      100% {
-        box-shadow: 0 0 0 0 rgba(36, 106, 101, 0);
-      }
-    }
-
-    .floating-loader-copy {
-      font-size: 12px;
-      color: var(--text);
-      line-height: 1.5;
-    }
-
-    .note-summary {
-      white-space: pre-wrap;
-    }
-
-    .note-media-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-
-    .note-media-card {
-      position: relative;
-      overflow: hidden;
-      border-radius: 18px;
-      border: 1px solid rgba(106, 79, 53, 0.12);
-      background: rgba(255, 255, 255, 0.72);
-      min-height: 120px;
-    }
-
-    .note-media-card img {
-      display: block;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      background: rgba(246, 241, 235, 0.8);
-    }
-
-    @media (max-width: 900px) {
-      .filters-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .filter-toolbar {
-        align-items: stretch;
-      }
-
-      .floating-loader {
-        right: 16px;
-        left: 16px;
-        bottom: 16px;
-        max-width: none;
-        min-width: 0;
-      }
-    }
-  `;
-  document.head.appendChild(style);
-}
 
 function setupFilterLayout() {
   const filtersGrid = document.querySelector('.filters-grid');
@@ -433,7 +122,7 @@ function setupFilterLayout() {
 
   filtersGrid.innerHTML = `
     <div id="ownedKnowledgeDropdown" class="filter-dropdown">
-      <button id="ownedKnowledgeDropdownBtn" class="btn dropdown-trigger" type="button">
+      <button id="ownedKnowledgeDropdownBtn" class="btn dropdown-trigger" type="button" aria-expanded="false">
         <span class="dropdown-label">
           <strong>我的知识库</strong>
           <span id="ownedKnowledgeDropdownLabel">配置后自动加载</span>
@@ -441,12 +130,12 @@ function setupFilterLayout() {
         <span class="dropdown-arrow">⌄</span>
       </button>
       <div class="dropdown-panel">
-        <input id="ownedKnowledgeFilterSearch" class="filter-search" type="text" placeholder="筛选我创建的知识库">
+        <input id="ownedKnowledgeFilterSearch" class="filter-search" type="text" aria-label="筛选知识库" placeholder="筛选知识库">
         <div id="ownedKnowledgeFilters" class="filter-options"></div>
       </div>
     </div>
     <div id="tagDropdown" class="filter-dropdown">
-      <button id="tagDropdownBtn" class="btn dropdown-trigger" type="button">
+      <button id="tagDropdownBtn" class="btn dropdown-trigger" type="button" aria-expanded="false">
         <span class="dropdown-label">
           <strong>标签筛选</strong>
           <span id="tagDropdownLabel">加载结果后可选</span>
@@ -454,16 +143,64 @@ function setupFilterLayout() {
         <span class="dropdown-arrow">⌄</span>
       </button>
       <div class="dropdown-panel">
-        <input id="tagFilterSearch" class="filter-search" type="text" placeholder="筛选标签名称">
+        <input id="tagFilterSearch" class="filter-search" type="text" aria-label="筛选标签" placeholder="筛选标签">
         <div id="tagFilters" class="filter-options"></div>
+      </div>
+    </div>
+    <div id="dateDropdown" class="filter-dropdown">
+      <button id="dateDropdownBtn" class="btn dropdown-trigger" type="button" aria-expanded="false">
+        <span class="dropdown-label">
+          <strong>时间筛选</strong>
+          <span id="dateDropdownLabel">全部时间</span>
+        </span>
+        <span class="dropdown-arrow">⌄</span>
+      </button>
+      <div class="dropdown-panel date-filter-panel">
+        <div class="date-preset-grid" aria-label="快捷时间段">
+          <button class="date-preset-btn" type="button" data-date-preset="month">近一个月</button>
+          <button class="date-preset-btn" type="button" data-date-preset="quarter">近三个月</button>
+          <button class="date-preset-btn" type="button" data-date-preset="year">近一年</button>
+        </div>
+        <p class="date-custom-title">自定义区间</p>
+        <div class="date-range-fields">
+          <div class="date-field">
+            <label for="dateStartInput">开始日期</label>
+            <input id="dateStartInput" type="date">
+          </div>
+          <span class="date-range-separator" aria-hidden="true">至</span>
+          <div class="date-field">
+            <label for="dateEndInput">结束日期</label>
+            <input id="dateEndInput" type="date">
+          </div>
+        </div>
+        <p class="date-filter-help">可以只填一边；查看某一天时，把起止日期设为同一天。</p>
+        <p id="dateFilterError" class="date-filter-error" role="alert">开始日期不能晚于结束日期。</p>
+      </div>
+    </div>
+    <div id="typeDropdown" class="filter-dropdown">
+      <button id="typeDropdownBtn" class="btn dropdown-trigger" type="button" aria-expanded="false">
+        <span class="dropdown-label">
+          <strong>笔记类型</strong>
+          <span id="typeDropdownLabel">全部类型</span>
+        </span>
+        <span class="dropdown-arrow">⌄</span>
+      </button>
+      <div class="dropdown-panel">
+        <div id="typeFilters" class="filter-options"></div>
       </div>
     </div>
   `;
 
-  filtersGrid.insertAdjacentHTML('afterend', `
-    <div class="filter-toolbar">
-      <div class="filter-toolbar-left">
-        <div id="filterInlineMeta" class="filter-inline-meta">完成设置后会自动加载首批结果。</div>
+  statusBar?.insertAdjacentHTML('afterend', `
+    <div id="syncToolbar" class="sync-toolbar" hidden aria-label="同步进度">
+      <div>
+        <p id="syncProgress" role="status" aria-live="polite"></p>
+        <small id="syncHint"></small>
+      </div>
+      <div class="sync-toolbar-actions">
+        <button id="syncPauseBtn" class="btn btn-secondary" type="button">暂停同步</button>
+        <button id="syncResumeBtn" class="btn btn-primary" type="button" hidden>继续同步</button>
+        <button id="syncFullBtn" class="btn btn-ghost" type="button" hidden>完整重新同步</button>
       </div>
     </div>
   `);
@@ -473,7 +210,7 @@ function setupFilterLayout() {
   floatingLoader.className = 'floating-loader';
   floatingLoader.innerHTML = `
     <span class="floating-loader-ring" aria-hidden="true"></span>
-    <div id="floatingLoaderCopy" class="floating-loader-copy">正在加载…</div>
+    <div id="floatingLoaderCopy" class="floating-loader-copy" role="status">正在加载…</div>
   `;
   document.body.appendChild(floatingLoader);
 
@@ -488,8 +225,23 @@ function setupFilterLayout() {
     tagDropdownLabel: document.getElementById('tagDropdownLabel'),
     tagFilterSearch: document.getElementById('tagFilterSearch'),
     tagFilters: document.getElementById('tagFilters'),
+    dateDropdown: document.getElementById('dateDropdown'),
+    dateDropdownBtn: document.getElementById('dateDropdownBtn'),
+    dateDropdownLabel: document.getElementById('dateDropdownLabel'),
+    dateStartInput: document.getElementById('dateStartInput'),
+    dateEndInput: document.getElementById('dateEndInput'),
+    dateFilterError: document.getElementById('dateFilterError'),
+    typeDropdown: document.getElementById('typeDropdown'),
+    typeDropdownBtn: document.getElementById('typeDropdownBtn'),
+    typeDropdownLabel: document.getElementById('typeDropdownLabel'),
+    typeFilters: document.getElementById('typeFilters'),
+    syncToolbar: document.getElementById('syncToolbar'),
+    syncProgress: document.getElementById('syncProgress'),
+    syncHint: document.getElementById('syncHint'),
+    syncPauseBtn: document.getElementById('syncPauseBtn'),
+    syncResumeBtn: document.getElementById('syncResumeBtn'),
+    syncFullBtn: document.getElementById('syncFullBtn'),
     activeFilters: document.getElementById('activeFilters'),
-    filterInlineMeta: document.getElementById('filterInlineMeta'),
     floatingLoader: document.getElementById('floatingLoader'),
     floatingLoaderCopy: document.getElementById('floatingLoaderCopy')
   };
@@ -506,101 +258,6 @@ function setupFilterLayout() {
   hideBottomLoadMore();
 }
 
-function applyProductCopy() {
-  document.querySelector('.brand-mark')?.setAttribute('alt', 'Get2MD 得到大脑内容导出整理工具图标');
-  document.querySelector('.brand-copy h1') && (document.querySelector('.brand-copy h1').textContent = '先确认要保留什么，再导出到你自己的系统');
-  document.querySelector('.brand-copy p') && (document.querySelector('.brand-copy p').textContent = 'Get2MD 会先把得到大脑里的内容整理到眼前，再让你筛选、预览、导出为 Markdown。适合备份、归档和迁移到自己的知识库与写作流。');
-  const heroNote = document.querySelector('.hero-note');
-  if (heroNote) heroNote.textContent = '你的 API Key 和笔记内容只保存在当前浏览器；先确认内容，再决定带走什么。';
-
-  if (refreshBtn) refreshBtn.textContent = getSyncButtonLabel();
-  if (openSettingsBtn) openSettingsBtn.textContent = '连接设置';
-
-  const statLabels = document.querySelectorAll('.stat-label');
-  if (statLabels[0]) statLabels[0].textContent = '已整理笔记';
-  if (statLabels[1]) statLabels[1].textContent = '当前结果';
-
-  const panelTitle = document.querySelector('.filters-panel .panel-title h2');
-  if (panelTitle) panelTitle.textContent = '搜索与筛选';
-  const panelSubtitle = document.querySelector('.filters-panel .panel-subtitle');
-  if (panelSubtitle) panelSubtitle.textContent = '先选知识库，再用标签和关键词缩小范围。';
-  if (clearFiltersBtn) clearFiltersBtn.textContent = '清空筛选';
-  if (searchInput) searchInput.placeholder = '搜索标题、标签，或已经整理出的正文内容';
-  document.getElementById('searchBtn') && (document.getElementById('searchBtn').textContent = '搜索');
-  if (clearSearchBtn) clearSearchBtn.textContent = '清空搜索';
-
-  const activeFiltersTitle = document.querySelector('#activeFilters')?.previousElementSibling;
-  if (activeFiltersTitle) activeFiltersTitle.textContent = '当前筛选';
-  if (filterElements.ownedKnowledgeFilterSearch) filterElements.ownedKnowledgeFilterSearch.placeholder = '筛选我创建的知识库';
-  if (filterElements.tagFilterSearch) filterElements.tagFilterSearch.placeholder = '筛选标签名称';
-  const dropdownStrong = document.querySelectorAll('.dropdown-label strong');
-  if (dropdownStrong[0]) dropdownStrong[0].textContent = '我的知识库';
-  if (dropdownStrong[1]) dropdownStrong[1].textContent = '标签筛选';
-
-  const resultsTitle = document.querySelector('.results-toolbar h2');
-  if (resultsTitle) resultsTitle.textContent = '笔记列表';
-  if (batchDownloadBtn) batchDownloadBtn.textContent = '下载原文';
-  if (batchDownloadAiBtn) batchDownloadAiBtn.textContent = '下载 AI 总结';
-
-  if (backBtn) backBtn.textContent = '返回列表';
-  if (downloadOriginalBtn) downloadOriginalBtn.textContent = '下载原文';
-  if (downloadAiBtn) downloadAiBtn.textContent = '下载 AI 总结';
-  const contentLabels = document.querySelectorAll('.content-label');
-  if (contentLabels[0]) contentLabels[0].textContent = '原文内容';
-  if (contentLabels[1]) contentLabels[1].textContent = 'AI 总结';
-
-  const settingsTitle = document.querySelector('.settings-copy h2');
-  if (settingsTitle) settingsTitle.textContent = '先连接你的得到大脑内容';
-  const settingsIntro = document.querySelector('.settings-copy p');
-  if (settingsIntro) settingsIntro.textContent = '只需要 API Key 和 Client ID 两项信息，就可以开始第一次整理。';
-  if (closeSettingsBtn) closeSettingsBtn.textContent = '关闭';
-
-  const guideTitle = document.querySelector('.settings-guide h3');
-  if (guideTitle) guideTitle.textContent = '准备好这两项信息';
-  const guideList = document.querySelector('.settings-guide ol');
-  if (guideList) {
-    guideList.innerHTML = `
-      <li><a class="guide-link" href="https://www.biji.com/openapi?tab=clients" target="_blank" rel="noopener noreferrer">打开得到大脑开放平台<span class="link-badge">获取</span></a></li>
-      <li>复制 API Key 和 Client ID。</li>
-    `;
-  }
-  const memberNote = document.querySelector('.member-note');
-  if (memberNote) {
-    memberNote.innerHTML = '开放平台能力需要得到大脑会员。还没有会员？<a href="https://www.biji.com/i/0D8SZ0N4E3?os=ANDROID&referral=0D8SZ0N4E3&trace=eyJzX3VzZXJfaWQiOjEyMDIwOCwic19lbnRpdHlfdHlwZSI6Imludml0ZV9yZWZlcnJhbCIsInNfZW50aXR5X2lkIjoiNjhlMDA0OWY4ZTM0ZmNiNGQ2NGQ1MWM1In0%3D&uid=XyZzEwqy" target="_blank" rel="noopener noreferrer">领取 3 天体验</a>。';
-  }
-  const privacyNote = document.querySelector('.privacy-note');
-  if (privacyNote) privacyNote.textContent = '信息只保存在当前浏览器，本项目不会替你托管这些凭证。';
-  const fieldHints = document.querySelectorAll('.field-hint');
-  if (fieldHints[0]) fieldHints[0].textContent = '从得到大脑开放平台复制。';
-  if (fieldHints[1]) fieldHints[1].textContent = '和 API Key 同一处获取。';
-  const settingsFoot = document.querySelector('.settings-foot .panel-subtitle');
-  if (settingsFoot) settingsFoot.textContent = '';
-  if (clearConfigBtn) clearConfigBtn.textContent = '清除本地配置';
-  if (settingsBackBtn) settingsBackBtn.textContent = '上一步';
-  updateSettingsWizard();
-}
-
-function applyEnvironmentCopy() {
-  const panelSubtitle = document.querySelector('.filters-panel .panel-subtitle');
-  if (panelSubtitle) {
-    panelSubtitle.textContent = ENABLE_KNOWLEDGE_BASE_FILTER
-      ? '先选知识库，再用标签和关键词缩小范围。'
-      : '先同步笔记，再用标签和关键词缩小范围。';
-  }
-
-  const dropdownStrong = document.querySelectorAll('.dropdown-label strong');
-  if (ENABLE_KNOWLEDGE_BASE_FILTER) {
-    if (dropdownStrong[0]) dropdownStrong[0].textContent = '我的知识库';
-    if (dropdownStrong[1]) dropdownStrong[1].textContent = '标签筛选';
-  } else if (dropdownStrong[0]) {
-    dropdownStrong[0].textContent = '标签筛选';
-  }
-
-  if (filterElements.filterInlineMeta) {
-    filterElements.filterInlineMeta.textContent = `完成设置后，点击“${getFirstSyncButtonLabel()}”开始加载内容。`;
-  }
-}
-
 function hideBottomLoadMore() {
   if (!loadMoreContainer) return;
   loadMoreContainer.style.display = 'none';
@@ -609,11 +266,11 @@ function hideBottomLoadMore() {
 
 function openSettings() {
   setSettingsStep(0);
-  settingsOverlay?.classList.add('open');
+  if (settingsOverlay && !settingsOverlay.open) settingsOverlay.showModal();
 }
 
 function closeSettings() {
-  settingsOverlay?.classList.remove('open');
+  settingsOverlay?.close();
   hideSettingsStepError();
 }
 
@@ -639,20 +296,18 @@ function updateSettingsWizard() {
 
   const settingsTitle = document.querySelector('.settings-copy h2');
   const settingsIntro = document.querySelector('.settings-copy p');
-  const settingsFoot = document.querySelector('.settings-foot .panel-subtitle');
   const copyByStep = [
-    ['准备信息', '需要 API Key 和 Client ID。'],
-    ['填 API Key', '从得到大脑开放平台复制。'],
-    ['填 Client ID', '和 API Key 同一处获取。'],
-    ['准备开始', '保存后会引导你去点击同步按钮。']
+    ['连接得到大脑', '准备好 API Key 和 Client ID。'],
+    ['填写 API Key', '从得到大脑开放平台复制。'],
+    ['填写 Client ID', '在获取 API Key 的页面复制。'],
+    ['确认连接信息', '连接凭证会保存在当前浏览器。']
   ];
 
   if (settingsTitle) settingsTitle.textContent = copyByStep[settingsStep][0];
   if (settingsIntro) settingsIntro.textContent = copyByStep[settingsStep][1];
-  if (settingsFoot) settingsFoot.textContent = '';
 
   if (settingsBackBtn) settingsBackBtn.classList.toggle('is-hidden', settingsStep === 0);
-  if (saveConfigBtn) saveConfigBtn.textContent = settingsStep === 3 ? '保存并继续' : '下一步';
+  if (saveConfigBtn) saveConfigBtn.textContent = settingsStep === 3 ? '保存连接' : '下一步';
 
   if (settingsStep === 1) {
     setTimeout(() => apiKeyInput?.focus(), 0);
@@ -707,12 +362,6 @@ function showStatus(message, type = 'error') {
   statusBar.className = `status-bar ${type}`;
 }
 
-function setInlineMeta(message) {
-  if (filterElements.filterInlineMeta) {
-    filterElements.filterInlineMeta.textContent = message;
-  }
-}
-
 function showFloatingLoader(message, mode = 'loading') {
   const loader = filterElements.floatingLoader;
   if (!loader) return;
@@ -736,12 +385,6 @@ function pulseFloatingSuccess(message) {
   hideFloatingLoader(1200);
 }
 
-function formatLoaderProgress() {
-  if (loadState.totalHint > 0) {
-    return `已加载 ${allNotes.length} / ${loadState.totalHint}`;
-  }
-  return `已加载 ${allNotes.length} 条`;
-}
 
 function showEmpty(title, hint, actions = []) {
   const effectiveActions = actions.length > 0
@@ -819,23 +462,13 @@ function hasSyncedNotes() {
 }
 
 function getSyncButtonLabel() {
-  return hasSyncedNotes() ? '重新同步内容' : '开始整理我的内容';
+  if (syncSession) return '继续同步';
+  if (allScopeSnapshot?.loadState.hasMore) return '继续同步历史笔记';
+  return hasSyncedNotes() ? '检查最近更新' : getFirstSyncButtonLabel();
 }
 
 function getFirstSyncButtonLabel() {
-  return '开始整理我的内容';
-}
-
-function updateSyncGuideCopy() {
-  const guide = document.getElementById('syncGuidePopover');
-  if (!guide) return;
-
-  guide.querySelector('.sync-guide-title').textContent = '先把内容整理到眼前';
-  guide.querySelector('.sync-guide-copy').textContent = '第一次整理会先同步你过去的内容。完成后，你就可以继续筛选、预览，并决定导出什么。';
-  const goBtn = guide.querySelector('#syncGuideGoBtn');
-  if (goBtn) {
-    goBtn.textContent = '现在开始整理';
-  }
+  return '同步笔记';
 }
 
 function ensureSyncGuide() {
@@ -845,16 +478,14 @@ function ensureSyncGuide() {
   guide.id = 'syncGuidePopover';
   guide.className = 'sync-guide-popover';
   guide.innerHTML = `
-    <div class="sync-guide-eyebrow">Next Step</div>
-    <div class="sync-guide-title">先把内容整理到眼前</div>
-    <div class="sync-guide-copy">第一次整理会先同步你过去的内容。完成后，你就可以继续筛选、预览，并决定导出什么。</div>
+    <div class="sync-guide-title">同步你的笔记</div>
+    <div class="sync-guide-copy">首批笔记出现后，就可以开始筛选和预览。</div>
     <div class="sync-guide-actions">
-      <button id="syncGuideGoBtn" class="btn btn-primary" type="button">现在开始整理</button>
-      <button id="syncGuideDismissBtn" class="btn btn-secondary" type="button">我知道了</button>
+      <button id="syncGuideGoBtn" class="btn btn-primary" type="button">开始同步</button>
+      <button id="syncGuideDismissBtn" class="btn btn-secondary" type="button">稍后</button>
     </div>
   `;
   document.body.appendChild(guide);
-  updateSyncGuideCopy();
 
   document.getElementById('syncGuideGoBtn')?.addEventListener('click', async () => {
     hideSyncGuide({ markSeen: true });
@@ -880,9 +511,7 @@ function showSyncGuide() {
   if (!hasSavedConfig || hasSeenSyncGuide() || !refreshBtn) return;
 
   ensureSyncGuide();
-  updateSyncGuideCopy();
   syncGuideVisible = true;
-  refreshBtn.classList.add('btn-attention');
   document.getElementById('syncGuidePopover')?.classList.add('visible');
   positionSyncGuide();
 }
@@ -890,7 +519,6 @@ function showSyncGuide() {
 function hideSyncGuide(options = {}) {
   const { markSeen = false } = options;
   syncGuideVisible = false;
-  refreshBtn?.classList.remove('btn-attention');
   document.getElementById('syncGuidePopover')?.classList.remove('visible');
   if (markSeen) {
     markSyncGuideSeen();
@@ -931,14 +559,26 @@ function restoreAllScopeSnapshot() {
   return true;
 }
 
-function saveViewState() {
+function saveViewState({ immediate = false } = {}) {
   if (!hasSavedConfig) return;
+
+  clearTimeout(viewStateSaveTimer);
+  if (!immediate) {
+    viewStateSaveTimer = setTimeout(() => saveViewState({ immediate: true }), 200);
+    return;
+  }
+  viewStateSaveTimer = null;
 
   try {
     const payload = {
       keyword,
       activeKnowledgeBaseId,
+      activeNoteType,
+      syncSession,
       activeTagFilters: Array.from(activeTagFilters),
+      activeDatePreset,
+      customDateStart,
+      customDateEnd,
       selectedNotes: Array.from(selectedNotes),
       ownedKnowledgeBases,
       allNotes,
@@ -962,6 +602,8 @@ function saveViewState() {
 }
 
 function clearViewState() {
+  clearTimeout(viewStateSaveTimer);
+  viewStateSaveTimer = null;
   localStorage.removeItem(STORAGE_KEYS.viewState);
   deleteViewStateFromIndexedDb().catch(error => {
     console.warn('clear indexedDB view state failed', error);
@@ -999,10 +641,28 @@ async function restoreViewState() {
     activeKnowledgeBaseId = ENABLE_KNOWLEDGE_BASE_FILTER && typeof payload.activeKnowledgeBaseId === 'string'
       ? payload.activeKnowledgeBaseId
       : '';
+    activeNoteType = Object.prototype.hasOwnProperty.call(NOTE_TYPES, payload.activeNoteType)
+      ? payload.activeNoteType : '';
+    syncSession = payload.syncSession && Array.isArray(payload.syncSession.notes)
+      && typeof payload.syncSession.cursor === 'string'
+      ? { ...payload.syncSession, status: 'paused' } : null;
     currentNoteId = typeof payload.currentNoteId === 'string' ? payload.currentNoteId : null;
 
     activeTagFilters.clear();
     (Array.isArray(payload.activeTagFilters) ? payload.activeTagFilters : []).forEach(tag => activeTagFilters.add(tag));
+
+    activeDatePreset = Object.prototype.hasOwnProperty.call(DATE_PRESETS, payload.activeDatePreset)
+      ? payload.activeDatePreset
+      : '';
+    customDateStart = isDateInputValue(payload.customDateStart) ? payload.customDateStart : '';
+    customDateEnd = isDateInputValue(payload.customDateEnd) ? payload.customDateEnd : '';
+    if (activeDatePreset) {
+      customDateStart = '';
+      customDateEnd = '';
+    } else if (customDateStart && customDateEnd && customDateStart > customDateEnd) {
+      customDateStart = '';
+      customDateEnd = '';
+    }
 
     selectedNotes.clear();
     (Array.isArray(payload.selectedNotes) ? payload.selectedNotes : []).forEach(noteId => selectedNotes.add(noteId));
@@ -1036,7 +696,7 @@ async function restoreViewState() {
     }
 
     applyFilters();
-    return allNotes.length > 0 || ownedKnowledgeBases.length > 0;
+    return allNotes.length > 0 || ownedKnowledgeBases.length > 0 || Boolean(syncSession);
   } catch (error) {
     console.warn('restore view state failed', error);
     clearViewState();
@@ -1062,11 +722,118 @@ function getTopics(note) {
 }
 
 function getTags(note) {
-  return (note.tags || []).map(tag => tag.name).filter(Boolean);
+  const typeNames = new Set(Object.values(NOTE_TYPES));
+  return (note.tags || []).filter(tag => !(
+    tag?.type === 'system' && typeNames.has(tag.name)
+  )).map(tag => typeof tag === 'string' ? tag : tag.name).filter(Boolean);
+}
+
+function getNoteType(note) {
+  const raw = String(note?.note_type || '').toLowerCase();
+  const systemTypes = (note?.tags || []).filter(tag => tag?.type === 'system').map(tag => tag.name);
+  const shape = inferNoteShape(note);
+  if (shape !== 'text') return shape;
+  if (systemTypes.includes('录音笔记')) return 'audio';
+  if (systemTypes.includes('链接笔记')) return 'web';
+  if (systemTypes.includes('视频笔记')) return 'video';
+  if (systemTypes.includes('图文笔记')) return 'image';
+  return !raw || ['text', 'plain_text', 'note', '文本', '文本笔记'].includes(raw) ? 'text' : 'other';
+}
+
+function getNoteTypeLabel(note) {
+  return NOTE_TYPES[getNoteType(note)];
+}
+
+function isDateInputValue(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split('-').map(Number);
+  const parsed = new Date(year, month - 1, day);
+  return parsed.getFullYear() === year
+    && parsed.getMonth() === month - 1
+    && parsed.getDate() === day;
+}
+
+function formatDateInputValue(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeNoteDateValue(value) {
+  if (typeof value === 'string') {
+    const matched = value.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (matched && isDateInputValue(matched[1])) return matched[1];
+  }
+
+  const timestampValue = typeof value === 'string' && /^\d{10,13}$/.test(value)
+    ? Number(value)
+    : value;
+  const numericValue = typeof timestampValue === 'number' && timestampValue < 1e12
+    ? timestampValue * 1000
+    : timestampValue;
+  const parsed = new Date(numericValue);
+  return Number.isNaN(parsed.getTime()) ? '' : formatDateInputValue(parsed);
 }
 
 function getNoteDate(note) {
-  return note.created_at ? note.created_at.slice(0, 10) : '';
+  return normalizeNoteDateValue(
+    note?.created_at
+    || note?.createdAt
+    || note?.create_time
+    || note?.createTime
+    || note?.published_at
+    || ''
+  );
+}
+
+function shiftCalendarDate(date, { months = 0, years = 0 } = {}) {
+  const shifted = new Date(date.getFullYear(), date.getMonth(), 1);
+  shifted.setFullYear(shifted.getFullYear() - years);
+  shifted.setMonth(shifted.getMonth() - months);
+  const lastDay = new Date(shifted.getFullYear(), shifted.getMonth() + 1, 0).getDate();
+  shifted.setDate(Math.min(date.getDate(), lastDay));
+  return shifted;
+}
+
+function getActiveDateRange() {
+  if (activeDatePreset && DATE_PRESETS[activeDatePreset]) {
+    const today = new Date();
+    return {
+      start: formatDateInputValue(shiftCalendarDate(today, DATE_PRESETS[activeDatePreset])),
+      end: formatDateInputValue(today)
+    };
+  }
+
+  return {
+    start: customDateStart,
+    end: customDateEnd
+  };
+}
+
+function hasActiveDateFilter() {
+  return Boolean(activeDatePreset || customDateStart || customDateEnd);
+}
+
+function formatChineseDate(value) {
+  if (!isDateInputValue(value)) return value || '';
+  const [year, month, day] = value.split('-').map(Number);
+  return `${year}年${month}月${day}日`;
+}
+
+function getDateFilterLabel() {
+  if (activeDatePreset && DATE_PRESETS[activeDatePreset]) {
+    return DATE_PRESETS[activeDatePreset].label;
+  }
+
+  if (customDateStart && customDateEnd) {
+    if (customDateStart === customDateEnd) return formatChineseDate(customDateStart);
+    return `${formatChineseDate(customDateStart)} 至 ${formatChineseDate(customDateEnd)}`;
+  }
+  if (customDateStart) return `${formatChineseDate(customDateStart)}起`;
+  if (customDateEnd) return `截至${formatChineseDate(customDateEnd)}`;
+  return '';
 }
 
 function normalizeTextCandidate(value) {
@@ -1093,11 +860,11 @@ function inferNoteShape(note) {
   const hasAudioPayload = note?.audio && typeof note.audio === 'object' && Object.keys(note.audio).length > 0;
   const hasVideoPayload = note?.video && typeof note.video === 'object' && Object.keys(note.video).length > 0;
 
-  if (hasWebPayload || noteType === 'link' || hasAttachmentType('link')) {
+  if (hasWebPayload || ['link', 'web', 'web_page', '链接笔记'].includes(noteType) || hasAttachmentType('link')) {
     return 'web';
   }
 
-  if (hasAudioPayload || noteType.includes('audio') || noteType.includes('voice') || noteType.includes('record') || hasAttachmentType('audio')) {
+  if (hasAudioPayload || noteType.includes('audio') || noteType.includes('voice') || noteType.includes('record') || noteType === '录音笔记' || hasAttachmentType('audio')) {
     return 'audio';
   }
 
@@ -1355,8 +1122,8 @@ function extractPagedHasMore(resp, currentPage, pageCount) {
 
 function updateBatchActions() {
   const count = selectedNotes.size;
+  if (selectedCountHero) selectedCountHero.textContent = String(count);
   selectedCount.textContent = String(count);
-  selectedCountHero.textContent = String(count);
   batchActions.style.display = count > 0 ? 'flex' : 'none';
   updateSelectFilteredControl();
 }
@@ -1377,12 +1144,6 @@ function updateSelectFilteredControl() {
       ? `已选 ${selectedInCurrentResults}/${selectableIds.length}`
       : '选择当前结果';
   }
-}
-
-function updateStats() {
-  loadedCount.textContent = String(allNotes.length);
-  visibleCount.textContent = String(filteredNotes.length);
-  updateBatchActions();
 }
 
 function updateSettingsButtonLabel() {
@@ -1407,35 +1168,23 @@ function updateDropdownLabels() {
       ? `已选 ${activeTagFilters.size} 个标签`
       : (allNotes.length > 0 ? '从当前结果中选择标签' : '加载结果后可选');
   }
+
+  if (filterElements.dateDropdownLabel) {
+    filterElements.dateDropdownLabel.textContent = getDateFilterLabel() || '全部时间';
+  }
+  if (filterElements.typeDropdownLabel) {
+    filterElements.typeDropdownLabel.textContent = NOTE_TYPES[activeNoteType] || '全部类型';
+  }
 }
 
 function updateLoadButtons() {
   if (refreshBtn) {
-    const busy = isLoadingNotes || isLoadingKnowledgeBases;
+    const busy = isLoadingNotes || isLoadingKnowledgeBases || syncRunning;
+    refreshBtn.hidden = !hasSavedConfig;
     refreshBtn.disabled = busy;
-    refreshBtn.textContent = busy ? '同步中...' : getSyncButtonLabel();
+    refreshBtn.textContent = busy ? '同步中…' : getSyncButtonLabel();
   }
-
-  if (!hasSavedConfig) {
-    setInlineMeta('完成连接后，就可以开始第一次整理。');
-    return;
-  }
-
-  if (isLoadingNotes) {
-    setInlineMeta(`正在整理 ${loadState.scopeName}，你可以继续浏览当前页面。`);
-    return;
-  }
-
-  if (!allNotes.length) {
-    setInlineMeta('同步后会先出现首批结果，再继续整理完整内容。');
-    return;
-  }
-
-  if (loadState.hasMore) {
-    setInlineMeta(`当前已整理 ${allNotes.length} 条 ${loadState.scopeName}。`);
-  } else {
-    setInlineMeta(`当前范围已经整理完成，共 ${allNotes.length} 条。`);
-  }
+  updateSyncToolbar();
 }
 
 function renderKnowledgeBaseOptions() {
@@ -1560,6 +1309,41 @@ function renderTagOptions() {
   });
 }
 
+function renderDateOptions() {
+  filterElements.dateDropdown?.querySelectorAll('[data-date-preset]').forEach(button => {
+    const isActive = button.dataset.datePreset === activeDatePreset;
+    button.classList.toggle('is-active', isActive);
+    button.setAttribute('aria-pressed', String(isActive));
+  });
+
+  if (filterElements.dateStartInput) {
+    filterElements.dateStartInput.value = customDateStart;
+    filterElements.dateStartInput.max = customDateEnd || '';
+  }
+  if (filterElements.dateEndInput) {
+    filterElements.dateEndInput.value = customDateEnd;
+    filterElements.dateEndInput.min = customDateStart || '';
+  }
+  filterElements.dateFilterError?.classList.remove('visible');
+}
+
+function renderTypeOptions() {
+  const counts = new Map();
+  allNotes.forEach(note => {
+    const type = getNoteType(note);
+    counts.set(type, (counts.get(type) || 0) + 1);
+  });
+  filterElements.typeFilters.innerHTML = [
+    ['', '全部类型', allNotes.length],
+    ...Object.entries(NOTE_TYPES).map(([type, label]) => [type, label, counts.get(type) || 0])
+  ].map(([type, label, count]) => `
+    <button type="button" class="filter-option type-filter-option ${activeNoteType === type ? 'is-active' : ''}"
+      data-note-type="${type}" aria-pressed="${activeNoteType === type}">
+      <span class="filter-option-text">${label}</span><span class="type-filter-count">${count}</span>
+    </button>
+  `).join('');
+}
+
 function renderActiveFilters() {
   const parts = [];
   const selectedKnowledgeBase = ownedKnowledgeBases.find(item => item.id === activeKnowledgeBaseId);
@@ -1575,6 +1359,13 @@ function renderActiveFilters() {
   activeTagFilters.forEach(tag => {
     parts.push(renderActiveFilterChip('tag', `标签：${tag}`, tag, 'tag'));
   });
+
+  if (hasActiveDateFilter()) {
+    parts.push(renderActiveFilterChip('date', `时间：${getDateFilterLabel()}`, '', 'topic'));
+  }
+  if (activeNoteType) {
+    parts.push(renderActiveFilterChip('type', `类型：${NOTE_TYPES[activeNoteType]}`, '', 'topic'));
+  }
 
   if (!parts.length) {
     filterElements.activeFilters.className = 'active-filters empty';
@@ -1622,6 +1413,18 @@ async function removeActiveFilter(action, value) {
     return;
   }
 
+
+  if (action === 'date') {
+    clearDateFilter();
+    applyFilters();
+    return;
+  }
+  if (action === 'type') {
+    activeNoteType = '';
+    applyFilters();
+    return;
+  }
+
   if (action === 'knowledge') {
     activeKnowledgeBaseId = '';
 
@@ -1638,6 +1441,8 @@ async function removeActiveFilter(action, value) {
 function renderFilters() {
   renderKnowledgeBaseOptions();
   renderTagOptions();
+  renderDateOptions();
+  renderTypeOptions();
   renderActiveFilters();
   updateDropdownLabels();
   updateLoadButtons();
@@ -1648,12 +1453,22 @@ function noteMatchesFilters(note) {
   const tags = getTags(note);
   const matchKeyword = !keyword || searchable.includes(keyword.toLowerCase());
   const matchTags = activeTagFilters.size === 0 || Array.from(activeTagFilters).every(tag => tags.includes(tag));
-  return matchKeyword && matchTags;
+  const noteDate = getNoteDate(note);
+  const dateRange = getActiveDateRange();
+  const matchDate = !hasActiveDateFilter() || Boolean(
+    noteDate
+    && (!dateRange.start || noteDate >= dateRange.start)
+    && (!dateRange.end || noteDate <= dateRange.end)
+  );
+  const matchType = !activeNoteType || getNoteType(note) === activeNoteType;
+  return matchKeyword && matchTags && matchDate && matchType;
 }
 
 function updateResultsMeta() {
+  if (loadedCount) loadedCount.textContent = String(allNotes.length);
+  if (visibleCount) visibleCount.textContent = String(filteredNotes.length);
   if (!hasSavedConfig) {
-    resultsMeta.textContent = '完成设置后会自动加载首批结果';
+    resultsMeta.textContent = '';
     return;
   }
 
@@ -1665,11 +1480,11 @@ function updateResultsMeta() {
   const scope = activeKnowledgeBaseId
     ? (ownedKnowledgeBases.find(item => item.id === activeKnowledgeBaseId)?.name || '当前知识库')
     : '全部笔记';
-  const filterHint = keyword || activeTagFilters.size > 0
+  const filterHint = keyword || activeTagFilters.size > 0 || hasActiveDateFilter() || activeNoteType
     ? `，当前命中 ${filteredNotes.length} 条`
     : '';
 
-  resultsMeta.textContent = `当前范围：${scope}，已加载 ${allNotes.length} 条${filterHint}`;
+  resultsMeta.textContent = `${scope} · 已读取 ${allNotes.length} 条${filterHint}`;
 }
 
 function renderNotes() {
@@ -1703,30 +1518,35 @@ function renderNotes() {
         }
       ]);
     }
-    updateStats();
+    updateBatchActions();
     updateResultsMeta();
     return;
   }
 
-  notesContainer.innerHTML = filteredNotes.map(note => {
+  const existingItems = new Map(Array.from(notesContainer.querySelectorAll('.note-item'))
+    .map(item => [item.dataset.noteId, item]));
+  if (existingItems.size === 0) notesContainer.replaceChildren();
+  const keptIds = new Set();
+  let insertionPoint = notesContainer.firstElementChild;
+  filteredNotes.forEach(note => {
     const noteId = getNoteId(note);
     const tags = getTags(note);
     const topicEntries = getTopicEntries(note);
     const summary = getPreviewContent(note) || '暂无摘要内容';
     const isSelected = selectedNotes.has(noteId);
 
-    return `
-      <article class="note-item ${isSelected ? 'selected' : ''}" data-note-id="${noteId}">
+    const markup = `
+      <article class="note-item ${isSelected ? 'selected' : ''}" data-note-id="${escapeHtml(noteId)}">
         <div class="note-checkbox">
-          <input type="checkbox" class="note-check" ${isSelected ? 'checked' : ''}>
+          <input type="checkbox" class="note-check" aria-label="选择笔记" ${isSelected ? 'checked' : ''}>
         </div>
         <div class="note-main">
           <div class="note-heading">
-            <div class="note-title">${escapeHtml(note.title || '未标题笔记')}</div>
+            <button class="note-title" type="button">${escapeHtml(note.title || '未标题笔记')}</button>
             <div class="note-date">${escapeHtml(getNoteDate(note))}</div>
           </div>
           <div class="note-meta">
-            <span class="note-type">${escapeHtml(note.note_type || 'text')}</span>
+            <button type="button" class="note-type note-type-trigger" data-note-type="${getNoteType(note)}" aria-label="只查看${getNoteTypeLabel(note)}">${getNoteTypeLabel(note)}</button>
           </div>
           ${topicEntries.length ? `<div class="note-scope-row">${topicEntries.map(topic => `<button type="button" class="topic-badge note-topic-trigger" data-topic-id="${escapeHtml(topic.id || '')}" data-topic-name="${escapeHtml(topic.name)}" aria-label="筛选 ${escapeHtml(topic.name)}">${escapeHtml(topic.name)}</button>`).join('')}</div>` : ''}
           <div class="note-summary">${escapeHtml(summary)}</div>
@@ -1734,46 +1554,29 @@ function renderNotes() {
             ${tags.map(tag => `<button type="button" class="mini-chip tag note-tag-trigger ${activeTagFilters.has(tag) ? 'is-active' : ''}" data-tag-value="${escapeHtml(tag)}" aria-label="只查看 ${escapeHtml(tag)} 标签下的笔记">${escapeHtml(tag)}</button>`).join('')}
           </div>
         </div>
-        <div class="note-open">></div>
+        <div class="note-open" aria-hidden="true">&gt;</div>
       </article>
     `;
-  }).join('');
-
-  notesContainer.querySelectorAll('.note-item').forEach(item => {
-    item.addEventListener('click', event => {
-      if (event.target.closest('.note-check') || event.target.closest('.note-tag-trigger') || event.target.closest('.note-topic-trigger')) {
-        return;
+    let item = existingItems.get(noteId);
+    if (!item || item.__noteMarkup !== markup) {
+      const template = document.createElement('template');
+      template.innerHTML = markup.trim();
+      const nextItem = template.content.firstElementChild;
+      nextItem.__noteMarkup = markup;
+      if (item) {
+        const wasInsertionPoint = insertionPoint === item;
+        item.replaceWith(nextItem);
+        if (wasInsertionPoint) insertionPoint = nextItem;
       }
-      openNoteDetail(item.dataset.noteId);
-    });
+      item = nextItem;
+    }
+    if (item !== insertionPoint) notesContainer.insertBefore(item, insertionPoint);
+    insertionPoint = item.nextElementSibling;
+    keptIds.add(noteId);
   });
+  existingItems.forEach((item, id) => { if (!keptIds.has(id)) item.remove(); });
 
-  notesContainer.querySelectorAll('.note-check').forEach(checkbox => {
-    checkbox.addEventListener('change', event => {
-      event.stopPropagation();
-      toggleSelection(checkbox.closest('.note-item').dataset.noteId, checkbox.checked);
-    });
-  });
-
-  notesContainer.querySelectorAll('.note-tag-trigger').forEach(button => {
-    button.addEventListener('click', event => {
-      event.stopPropagation();
-      const tag = button.dataset.tagValue;
-      activeTagFilters.clear();
-      activeTagFilters.add(tag);
-      selectedNotes.clear();
-      applyFilters();
-    });
-  });
-
-  notesContainer.querySelectorAll('.note-topic-trigger').forEach(button => {
-    button.addEventListener('click', event => {
-      event.stopPropagation();
-      filterByTopic(button.dataset.topicId || '', button.dataset.topicName || '');
-    });
-  });
-
-  updateStats();
+  updateBatchActions();
   updateResultsMeta();
 }
 
@@ -1837,8 +1640,10 @@ function toggleSelection(noteId, checked) {
 
 function fillDetailPlaceholder() {
   currentNoteId = null;
-  detailTitle.textContent = '选择一条内容，先确认再导出';
-  detailMeta.innerHTML = renderDetailMetaChips(['原文', 'AI 总结', '图片']);
+  detailView?.classList.remove('has-note', 'mobile-detail-open');
+  detailTitle.textContent = '';
+  detailMeta.textContent = '';
+  detailStatus.textContent = '';
   if (detailEmptyHint) detailEmptyHint.style.display = 'block';
   setDetailActionsEnabled(false);
   ensureDetailMediaContainer().innerHTML = '';
@@ -1883,9 +1688,10 @@ function renderNoteDetail(note) {
     ? ownedKnowledgeBases.find(item => item.id === activeKnowledgeBaseId)?.name || '当前知识库'
     : '全部笔记';
 
+  detailView?.classList.add('has-note');
   detailTitle.textContent = note.title || '未标题笔记';
   detailMeta.innerHTML = renderDetailMetaChips([
-    `类型：${note.note_type || 'text'}`,
+    `类型：${getNoteTypeLabel(note)}`,
     getNoteDate(note) ? `日期：${getNoteDate(note)}` : '',
     `范围：${currentKnowledgeBase}`,
     topics.length ? `归属：${topics.join(' / ')}` : '',
@@ -1928,7 +1734,7 @@ async function openNoteDetail(noteId) {
     renderNoteDetail(noteFromList);
   }
 
-  showStatus('正在获取笔记详情…', 'info');
+  detailStatus.textContent = '正在读取笔记详情…';
 
   try {
     const detail = await getCachedOrFetchDetail(noteId);
@@ -1940,11 +1746,13 @@ async function openNoteDetail(noteId) {
         cacheAllScopeSnapshot();
       }
     }
-    renderNoteDetail(detail.note);
-    showStatus(detail.fromCache ? '已显示本地缓存详情' : '笔记详情已更新', 'success');
+    if (currentNoteId === noteId) {
+      renderNoteDetail(detail.note);
+      detailStatus.textContent = '';
+    }
     saveViewState();
   } catch (error) {
-    showStatus(`加载详情失败: ${error.message}`);
+    if (currentNoteId === noteId) detailStatus.textContent = `读取详情失败：${error.message}`;
   }
 }
 
@@ -1968,7 +1776,22 @@ async function checkConfig() {
   return hasSavedConfig;
 }
 
-async function apiGet(path, params = {}) {
+function apiGet(path, params = {}, options = {}) {
+  const request = requestQueue.catch(() => {}).then(async () => {
+    const delay = Math.max(0, nextRequestAt - Date.now());
+    if (delay) await wait(delay, options.signal);
+    if (options.shouldStop?.()) throw Object.assign(new Error('同步已暂停'), { code: 'SYNC_PAUSED' });
+    try {
+      return await performApiGet(path, params);
+    } finally {
+      nextRequestAt = Math.max(nextRequestAt, Date.now() + requestIntervalMs);
+    }
+  });
+  requestQueue = request.catch(() => {});
+  return request;
+}
+
+async function performApiGet(path, params = {}) {
   const apiKey = getApiKey();
   const clientId = getClientId();
   if (!apiKey || !clientId) {
@@ -1982,7 +1805,12 @@ async function apiGet(path, params = {}) {
     }
   });
 
-  const response = await fetch(url.toString(), {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+  let response;
+  let payload;
+  try {
+    response = await fetch(url.toString(), {
     method: 'GET',
     headers: {
       'Authorization': apiKey,
@@ -1990,18 +1818,55 @@ async function apiGet(path, params = {}) {
       'Content-Type': 'application/json',
       'Cache-Control': 'no-cache',
       'Pragma': 'no-cache'
-    }
-  });
-
-  if (!response.ok) {
-    throw new Error(`请求失败 (${response.status})`);
+    },
+    signal: controller.signal
+    });
+    payload = await response.json().catch(() => null);
+  } catch (error) {
+    if (error.name === 'AbortError') throw new Error('这次请求等待超时，进度已保留，请继续同步。');
+    throw error;
+  } finally {
+    clearTimeout(timeout);
   }
 
-  return response.json();
+  if (!response.ok || payload?.success === false) {
+    const details = payload?.error || {};
+    const reason = details.reason || '';
+    const code = Number(details.code || payload?.code || 0);
+    const error = new Error(details.message || `请求失败 (${response.status})`);
+    error.status = response.status;
+    error.reason = reason;
+    error.isQuota = ['quota_day', 'quota_month'].includes(reason);
+    error.isRateLimited = !error.isQuota && reason !== 'not_member'
+      && (response.status === RATE_LIMIT_STATUS || code === 10202 || ['qps_global', 'qps_bucket'].includes(reason));
+    const retryAfter = response.headers.get('Retry-After');
+    error.retryAfterMs = retryAfter
+      ? (Number.isFinite(Number(retryAfter)) ? Number(retryAfter) * 1000 : Math.max(0, Date.parse(retryAfter) - Date.now()))
+      : 0;
+    if (error.isQuota) error.message = `${reason === 'quota_day' ? '今日' : '本月'}接口额度已用完，进度已保留，额度恢复后可以继续同步。`;
+    if (reason === 'not_member') error.message = '请检查得到大脑会员权限和连接设置。';
+    throw error;
+  }
+
+  if (!payload) throw new Error('接口返回内容无法读取，请稍后继续同步。');
+  requestIntervalMs = Math.max(REQUEST_INTERVAL_MS, requestIntervalMs * 0.95);
+  return payload;
 }
 
-function wait(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+function wait(ms, signal) {
+  return new Promise((resolve, reject) => {
+    const stop = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', stop);
+      reject(Object.assign(new Error('同步已暂停'), { code: 'SYNC_PAUSED' }));
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', stop);
+      resolve();
+    }, ms);
+    if (signal?.aborted) { stop(); return; }
+    signal?.addEventListener('abort', stop, { once: true });
+  });
 }
 
 async function withRateLimitRetry(task, label, options = {}) {
@@ -2014,22 +1879,27 @@ async function withRateLimitRetry(task, label, options = {}) {
   let lastError = null;
 
   while (attempt <= maxRetries) {
+    if (options.shouldStop?.()) throw Object.assign(new Error('同步已暂停'), { code: 'SYNC_PAUSED' });
     try {
       return await task();
     } catch (error) {
       lastError = error;
-      const message = error?.message || '';
-      const isRateLimited = message.includes(`(${RATE_LIMIT_STATUS})`);
+      const isRateLimited = error?.isRateLimited;
 
       if (!isRateLimited || attempt >= maxRetries) {
         throw error;
       }
 
       attempt += 1;
-      const backoff = retryDelayMs * attempt;
-      showStatus(`${label} 请求过快，${Math.ceil(backoff / 1000)} 秒后自动重试`, 'info');
-      showFloatingLoader(`${label} 请求稍快，正在重试…`);
-      await wait(backoff);
+      requestIntervalMs = Math.min(10000, Math.max(REQUEST_INTERVAL_MS, requestIntervalMs * 1.5));
+      const backoff = Math.max(error.retryAfterMs || 0, retryDelayMs * (2 ** (attempt - 1)));
+      nextRequestAt = Math.max(nextRequestAt, Date.now() + backoff);
+      syncWaitMessage = `接口繁忙，${Math.ceil(backoff / 1000)} 秒后自动继续`;
+      updateSyncToolbar();
+      if (!syncRunning) showStatus(`${label}：${syncWaitMessage}`, 'info');
+      await wait(backoff, options.signal);
+      syncWaitMessage = '';
+      updateSyncToolbar();
     }
   }
 
@@ -2091,7 +1961,7 @@ async function getKnowledgeNotes(topicId, page = 1) {
   };
 }
 
-async function getNoteList(cursor = '0', limit = PAGE_SIZE) {
+async function getNoteList(cursor = '0', limit = PAGE_SIZE, options = {}) {
   const params = { limit };
   if (cursor && cursor !== '0') {
     params.cursor = cursor;
@@ -2100,8 +1970,8 @@ async function getNoteList(cursor = '0', limit = PAGE_SIZE) {
   }
 
   const resp = await withRateLimitRetry(
-    () => apiGet('/note/list', params),
-    '笔记列表'
+    () => apiGet('/note/list', params, options),
+    '笔记列表', options
   );
 
   if (!resp.success) {
@@ -2166,40 +2036,7 @@ function mergeNotes(existingNotes, incomingNotes) {
   return { merged, addedCount };
 }
 
-function prependFreshNotes(existingNotes, incomingNotes) {
-  const seenIds = new Set(existingNotes.map(getNoteId).filter(Boolean));
-  const freshNotes = [];
-  let hitExisting = false;
-  let pageNewCount = 0;
 
-  for (const note of incomingNotes) {
-    const noteId = getNoteId(note);
-    if (noteId && seenIds.has(noteId)) {
-      hitExisting = true;
-      continue;
-    }
-    if (noteId) {
-      seenIds.add(noteId);
-    }
-    freshNotes.push(note);
-    pageNewCount += 1;
-  }
-
-  return {
-    merged: freshNotes.length > 0 ? [...freshNotes, ...existingNotes] : [...existingNotes],
-    addedCount: freshNotes.length,
-    hitExisting,
-    pageNewCount
-  };
-}
-
-function hasLatestPageDrift(localNotes, remoteNotes) {
-  const localIds = new Set((Array.isArray(localNotes) ? localNotes : []).map(getNoteId).filter(Boolean));
-  return (Array.isArray(remoteNotes) ? remoteNotes : []).some(note => {
-    const noteId = getNoteId(note);
-    return noteId && !localIds.has(noteId);
-  });
-}
 
 function supportsIndexedDb() {
   return typeof window !== 'undefined' && 'indexedDB' in window;
@@ -2290,6 +2127,7 @@ function queueViewStateWrite(raw) {
 }
 
 function flushPendingViewStateWrites() {
+  if (viewStateSaveTimer) saveViewState({ immediate: true });
   return pendingViewStateWrite.catch(() => {});
 }
 
@@ -2347,93 +2185,7 @@ function getNotesForKnowledgeBase(notes, knowledgeBaseId) {
   });
 }
 
-function syncCurrentViewWithAllScopeSnapshot() {
-  const sourceNotes = getAllScopeNotesSource();
 
-  if (activeKnowledgeBaseId) {
-    replaceNotesForNewScope(getNotesForKnowledgeBase(sourceNotes, activeKnowledgeBaseId));
-    applyContextToLoadState({
-      mode: 'owned-knowledge',
-      scopeName: getCurrentScopeName(),
-      page: loadState.page,
-      hasMore: loadState.hasMore,
-      totalHint: loadState.totalHint
-    });
-    return;
-  }
-
-  replaceNotesForNewScope(sourceNotes);
-  if (allScopeSnapshot?.loadState) {
-    applyContextToLoadState(allScopeSnapshot.loadState);
-  }
-}
-
-async function incrementalRefreshAllNotes() {
-  const sourceNotes = getAllScopeNotesSource();
-  if (sourceNotes.length === 0) {
-    return { addedCount: 0, checkedPages: 0, usedIncremental: false };
-  }
-
-  let mergedNotes = [...sourceNotes];
-  let cursor = '0';
-  let hasMore = true;
-  let checkedPages = 0;
-  let addedCount = 0;
-  let stalePages = 0;
-
-  while (hasMore && checkedPages < 50) {
-    const result = await getNoteList(cursor, PAGE_SIZE);
-    checkedPages += 1;
-
-    const prependResult = prependFreshNotes(mergedNotes, result.notes);
-    mergedNotes = prependResult.merged;
-    addedCount += prependResult.addedCount;
-
-    if (prependResult.pageNewCount === 0) {
-      stalePages += 1;
-    } else {
-      stalePages = 0;
-    }
-
-    if (result.notes.length === 0 || !result.hasMore || stalePages >= 1) {
-      break;
-    }
-
-    cursor = result.nextCursor;
-    hasMore = result.hasMore;
-    await wait(250);
-  }
-
-  const snapshotLoadState = allScopeSnapshot?.loadState || {
-    mode: 'all',
-    scopeName: '全部笔记',
-    cursor: loadState.mode === 'all' ? loadState.cursor : '0',
-    page: 1,
-    hasMore: loadState.mode === 'all' ? loadState.hasMore : false,
-    totalHint: loadState.mode === 'all' ? loadState.totalHint : 0
-  };
-
-  allScopeSnapshot = {
-    notes: mergedNotes,
-    loadState: {
-      ...snapshotLoadState,
-      mode: 'all',
-      scopeName: '全部笔记',
-      totalHint: Math.max(snapshotLoadState.totalHint || 0, mergedNotes.length)
-    }
-  };
-
-  syncCurrentViewWithAllScopeSnapshot();
-  applyFilters();
-  saveViewState();
-  await flushPendingViewStateWrites();
-
-  return {
-    addedCount,
-    checkedPages,
-    usedIncremental: true
-  };
-}
 
 async function loadOwnedKnowledgeBases(options = {}) {
   if (!ENABLE_KNOWLEDGE_BASE_FILTER) {
@@ -2486,305 +2238,240 @@ async function loadOwnedKnowledgeBases(options = {}) {
   }
 }
 
-function beginLoading(message) {
-  isLoadingNotes = true;
-  updateLoadButtons();
-  showFloatingLoader(message);
-}
 
-function finishLoading(successMessage) {
-  isLoadingNotes = false;
-  updateLoadButtons();
-  if (successMessage) {
-    pulseFloatingSuccess(successMessage);
-  } else {
-    hideFloatingLoader();
-  }
-}
 
-async function loadInitialNotesForCurrentScope() {
-  if (!hasSavedConfig || isLoadingNotes) {
-    return false;
-  }
 
-  currentLoadToken += 1;
-  const token = currentLoadToken;
-  const scopeName = getCurrentScopeName();
 
-  beginLoading(`正在准备 ${scopeName}…`);
-
-  try {
-    if (activeKnowledgeBaseId) {
-      const result = await getKnowledgeNotes(activeKnowledgeBaseId, 1);
-      if (token !== currentLoadToken) return false;
-
-      replaceNotesForNewScope(result.notes);
-      applyContextToLoadState({
-        mode: 'owned-knowledge',
-        scopeName,
-        page: 2,
-        hasMore: result.hasMore,
-        totalHint: result.total
-      });
-      showStatus(`已加载 ${scopeName} 的首批 ${allNotes.length} 条笔记`, 'success');
-    } else {
-      const result = await getNoteList('0', PAGE_SIZE);
-      if (token !== currentLoadToken) return false;
-
-      replaceNotesForNewScope(result.notes);
-      applyContextToLoadState({
-        mode: 'all',
-        scopeName,
-        cursor: result.nextCursor,
-        hasMore: result.hasMore,
-        totalHint: result.total
-      });
-      cacheAllScopeSnapshot();
-      showStatus(`已快速加载首批 ${allNotes.length} 条笔记`, 'success');
-    }
-
-    applyFilters();
-    finishLoading('首批结果已就绪');
-    saveViewState();
-    await flushPendingViewStateWrites();
-    return true;
-  } catch (error) {
-    if (token !== currentLoadToken) return false;
-
-    finishLoading();
-    showStatus(`加载失败: ${error.message}`);
-    const title = activeKnowledgeBaseId ? '我的知识库加载失败' : '加载失败';
-    const hint = activeKnowledgeBaseId
-      ? '这个知识库的内容暂时没有加载出来，可以重试一次，或者先回到全部笔记。'
-      : '内容暂时没有加载出来，可以重试一次。如果连续失败，再检查得到大脑会员权限和开放平台凭证。';
-    showEmpty(title, hint, [
-      {
-        id: 'retrySync',
-        label: '重试同步',
-        variant: 'primary',
-        handler: refreshNotes
-      },
-      ...(activeKnowledgeBaseId ? [{
-        id: 'allNotes',
-        label: '查看全部笔记',
-        variant: 'secondary',
-        handler: () => removeActiveFilter('knowledge', activeKnowledgeBaseId)
-      }] : [{
-        id: 'settings',
-        label: '检查设置',
-        variant: 'secondary',
-        handler: openSettings
-      }])
-    ]);
-    renderFilters();
-    return false;
-  }
-}
-
-async function continueLoadingCurrentFeed(options = {}) {
-  const {
-    silentProgress = false,
-    keepLoader = false
-  } = options;
-
-  if (!hasSavedConfig || isLoadingNotes || !loadState.hasMore) {
-    return;
-  }
-
-  beginLoading(silentProgress
-    ? `${loadState.scopeName} · ${formatLoaderProgress()}`
-    : `正在加载更多 ${loadState.scopeName}…`);
-
-  try {
-    let mergeResult;
-
-    if (loadState.mode === 'owned-knowledge') {
-      const result = await getKnowledgeNotes(activeKnowledgeBaseId, loadState.page);
-      mergeResult = mergeNotes(allNotes, result.notes);
-      allNotes = mergeResult.merged;
-      applyContextToLoadState({
-        mode: loadState.mode,
-        scopeName: loadState.scopeName,
-        page: loadState.page + 1,
-        hasMore: result.hasMore,
-        totalHint: result.total
-      });
-    } else {
-      const result = await getNoteList(loadState.cursor, PAGE_SIZE);
-      mergeResult = mergeNotes(allNotes, result.notes);
-      allNotes = mergeResult.merged;
-      applyContextToLoadState({
-        mode: loadState.mode,
-        scopeName: loadState.scopeName,
-        cursor: result.nextCursor,
-        hasMore: result.hasMore,
-        totalHint: result.total
-      });
-      cacheAllScopeSnapshot();
-    }
-
-    applyFilters();
-
-    if (silentProgress) {
-      showFloatingLoader(`${loadState.scopeName} · ${formatLoaderProgress()}`);
-    } else if (mergeResult.addedCount > 0) {
-      showStatus(`已补充 ${mergeResult.addedCount} 条内容`, 'success');
-    } else {
-      showStatus('没有更多内容了', 'info');
-    }
-
-    if (keepLoader) {
-      isLoadingNotes = false;
-      updateLoadButtons();
-    } else {
-      finishLoading('加载完成');
-    }
-    saveViewState();
-    await flushPendingViewStateWrites();
-  } catch (error) {
-    finishLoading();
-    showStatus(`同步更多内容失败: ${error.message}`);
-    renderFilters();
-  }
-}
-
-async function loadAllRemainingForCurrentFeed() {
-  if (!hasSavedConfig || isLoadingNotes || !loadState.hasMore) {
-    return;
-  }
-
-  pendingLoadAll = true;
-  const initialCount = allNotes.length;
-  showFloatingLoader(`${loadState.scopeName} · ${formatLoaderProgress()}`);
-
-  while (pendingLoadAll && loadState.hasMore) {
-    await continueLoadingCurrentFeed({ silentProgress: true, keepLoader: true });
-
-    if (loadState.hasMore && pendingLoadAll) {
-      showFloatingLoader(`${loadState.scopeName} · ${formatLoaderProgress()}`);
-      await wait(LOAD_ALL_STEP_DELAY_MS);
-    }
-  }
-
-  pendingLoadAll = false;
-
-  const addedCount = Math.max(0, allNotes.length - initialCount);
-  if (addedCount > 0) {
-    showStatus(`已同步 ${addedCount} 条新内容`, 'success');
-  } else {
-    showStatus('当前已经是最新加载结果', 'info');
-  }
-  finishLoading('同步完成');
-}
 
 async function refreshNotesForCurrentFilters() {
-  pendingLoadAll = false;
-  return loadInitialNotesForCurrentScope();
-}
-
-async function refreshNotesLegacy() {
-  hideSyncGuide({ markSeen: true });
-
-  if (!hasSavedConfig) {
-    showStatus('先完成设置，再同步你的笔记', 'info');
-    openSettings();
-    return;
-  }
-
-  const hasLocalSnapshot = getAllScopeNotesSource().length > 0;
-
-  if (ENABLE_KNOWLEDGE_BASE_FILTER) {
-    await loadOwnedKnowledgeBases({ preserveExisting: hasLocalSnapshot });
-  }
-
-  if (!hasLocalSnapshot) {
-    const loaded = await refreshNotesForCurrentFilters();
-    if (!loaded) {
-      return;
-    }
-    if (loadState.hasMore) {
-      await loadAllRemainingForCurrentFeed();
-    }
-    return;
-  }
-
-  beginLoading('正在检查最新笔记…');
-
-  try {
-    const result = await incrementalRefreshAllNotes();
-    if (result.addedCount > 0) {
-      showStatus(`已同步 ${result.addedCount} 条最近笔记`, 'success');
-      finishLoading('增量同步完成');
-    } else {
-      showStatus('没有发现新笔记', 'info');
-      finishLoading('已经是最新');
-    }
-  } catch (error) {
-    finishLoading();
-    showStatus(`增量同步失败: ${error.message}`);
-  }
-}
-
-async function refreshNotesFullReload() {
-  hideSyncGuide({ markSeen: true });
-
-  if (!hasSavedConfig) {
-    showStatus('先完成设置，再同步你的笔记', 'info');
-    openSettings();
-    return;
-  }
-
-  if (ENABLE_KNOWLEDGE_BASE_FILTER) {
-    await loadOwnedKnowledgeBases({ preserveExisting: false });
-  }
-
-  const previousKnowledgeBaseId = activeKnowledgeBaseId;
-
-  try {
-    activeKnowledgeBaseId = '';
-    allScopeSnapshot = null;
+  if (allScopeSnapshot && Array.isArray(allScopeSnapshot.notes)) {
+    allNotes = getNotesForKnowledgeBase(allScopeSnapshot.notes, activeKnowledgeBaseId);
     applyContextToLoadState({
-      mode: 'all',
-      scopeName: getCurrentScopeName(),
-      cursor: '0',
-      page: 1,
-      hasMore: false,
-      totalHint: 0
+      ...allScopeSnapshot.loadState,
+      mode: activeKnowledgeBaseId ? 'owned-knowledge' : 'all',
+      scopeName: getCurrentScopeName()
     });
-
-    const loaded = await refreshNotesForCurrentFilters();
-    if (!loaded) {
-      activeKnowledgeBaseId = previousKnowledgeBaseId;
-      renderFilters();
-      return;
-    }
-    if (loadState.hasMore) {
-      await loadAllRemainingForCurrentFeed();
-    }
-
-    if (previousKnowledgeBaseId) {
-      activeKnowledgeBaseId = previousKnowledgeBaseId;
-      syncCurrentViewWithAllScopeSnapshot();
-      applyFilters();
-      renderFilters();
-      saveViewState();
-      await flushPendingViewStateWrites();
-    }
-
-    showStatus('已重新同步最新笔记', 'success');
-  } catch (error) {
-    activeKnowledgeBaseId = previousKnowledgeBaseId;
-    renderFilters();
-    showStatus(`同步失败: ${error.message}`);
+    applyFilters();
+    return true;
   }
+  await runSyncSession();
+  return Boolean(allScopeSnapshot);
 }
+
+
 
 async function refreshNotes() {
-  await refreshNotesFullReload();
+  await runSyncSession();
+}
+
+function updateSyncToolbar() {
+  const elements = filterElements;
+  if (!elements.syncToolbar) return;
+  elements.syncToolbar.hidden = !syncSession && !hasSyncedNotes();
+  elements.syncPauseBtn.hidden = !syncRunning;
+  elements.syncPauseBtn.disabled = syncPauseRequested;
+  elements.syncPauseBtn.textContent = syncPauseRequested ? '正在暂停…' : '暂停同步';
+  elements.syncResumeBtn.hidden = syncRunning || !syncSession;
+  elements.syncFullBtn.hidden = !hasSyncedNotes() || Boolean(syncSession) || syncRunning;
+  const count = syncSession?.notes.length || getAllScopeNotesSource().length;
+  elements.syncProgress.textContent = syncSession
+    ? `${syncSession.mode === 'recent' ? '检查近期变化' : '同步笔记'} · 已读取 ${count} 条${syncRunning ? '' : ' · 已暂停'}`
+    : `已整理 ${count} 条笔记${allScopeSnapshot?.loadState.hasMore ? ' · 历史笔记尚未同步完' : ''}`;
+  elements.syncHint.textContent = syncWaitMessage || syncSession?.error
+    || (syncSession && !syncRunning ? '进度已保存在当前浏览器，继续同步会接着读取。' : '');
+}
+
+function pauseSyncSession() {
+  if (!syncRunning) return;
+  syncPauseRequested = true;
+  syncWaitController?.abort();
+  updateSyncToolbar();
+}
+
+function syncNoteFingerprint(note) {
+  return JSON.stringify([note.updated_at, note.title, note.content, note.note_type, note.tags, note.topics]);
+}
+
+function publishSyncNotes(notes, { complete = false } = {}) {
+  const previous = getAllScopeNotesSource();
+  const byId = new Map(previous.map(note => [getNoteId(note), note]));
+  const merged = complete ? [...notes] : [...previous];
+  const indexById = new Map(merged.map((note, index) => [getNoteId(note), index]));
+  const newNotes = [];
+  notes.forEach(note => {
+    const id = getNoteId(note);
+    const old = byId.get(id);
+    if (old && syncNoteFingerprint(old) !== syncNoteFingerprint(note)) detailCache.delete(id);
+    if (!complete) {
+      if (indexById.has(id)) merged[indexById.get(id)] = note;
+      else newNotes.push(note);
+    }
+  });
+  let source = complete ? merged : [...newNotes, ...merged];
+  if (!complete && syncSession) {
+    const sourceById = new Map(source.map(note => [getNoteId(note), note]));
+    const readIds = new Set(syncSession.notes.map(getNoteId));
+    source = [
+      ...syncSession.notes.map(note => sourceById.get(getNoteId(note)) || note),
+      ...source.filter(note => !readIds.has(getNoteId(note)))
+    ];
+  }
+  const knownIds = new Set(source.map(getNoteId));
+  if (complete) {
+    selectedNotes.forEach(id => { if (!knownIds.has(id)) selectedNotes.delete(id); });
+    detailCache.forEach((_, id) => { if (!knownIds.has(id)) detailCache.delete(id); });
+    if (currentNoteId && !knownIds.has(currentNoteId)) {
+      currentNoteId = null;
+      fillDetailPlaceholder();
+    }
+  }
+  const previousState = allScopeSnapshot?.loadState || loadState;
+  allScopeSnapshot = {
+    notes: source,
+    loadState: {
+      mode: 'all', scopeName: '全部笔记', page: 1,
+      cursor: syncSession?.mode === 'full' ? syncSession.cursor : previousState.cursor,
+      hasMore: syncSession?.mode === 'full' ? !complete : Boolean(previousState.hasMore),
+      totalHint: syncSession?.total || previousState.totalHint || 0
+    }
+  };
+  allNotes = getNotesForKnowledgeBase(source, activeKnowledgeBaseId);
+  applyContextToLoadState({ ...allScopeSnapshot.loadState, scopeName: getCurrentScopeName(), mode: activeKnowledgeBaseId ? 'owned-knowledge' : 'all' });
+  filteredNotes = allNotes.filter(noteMatchesFilters);
+  renderNotes();
+  // Open filter controls and date drafts remain intact while pages arrive.
+  if (!filterElements.tagDropdown?.classList.contains('open')) renderTagOptions();
+  if (!filterElements.typeDropdown?.classList.contains('open')) renderTypeOptions();
+  updateDropdownLabels();
+}
+
+async function runSyncSession({ full = false } = {}) {
+  hideSyncGuide({ markSeen: true });
+  if (!hasSavedConfig) { openSettings(); return; }
+  if (syncRunning || isLoadingNotes) return;
+  const generation = ++syncGeneration;
+  if (!syncSession) {
+    const previous = allScopeSnapshot;
+    const resumeOldFeed = !full && previous?.loadState?.hasMore && previous.loadState.cursor !== '0';
+    syncSession = {
+      mode: full || !previous || previous.loadState.hasMore ? 'full' : 'recent',
+      notes: resumeOldFeed ? [...previous.notes] : [],
+      cursor: resumeOldFeed ? previous.loadState.cursor : '0',
+      hasMore: true, total: 0, unchangedPages: 0, status: 'running', error: ''
+    };
+  }
+  const session = syncSession;
+  session.status = 'running';
+  session.error = '';
+  syncRunning = true;
+  syncPauseRequested = false;
+  syncWaitController = new AbortController();
+  syncWaitMessage = '';
+  updateLoadButtons();
+  saveViewState({ immediate: true });
+  const baseline = new Map(getAllScopeNotesSource().map(note => [getNoteId(note), syncNoteFingerprint(note)]));
+  try {
+    while (session.hasMore && !syncPauseRequested && generation === syncGeneration) {
+      const cursor = session.cursor;
+      const result = await getNoteList(cursor, PAGE_SIZE, {
+        shouldStop: () => syncPauseRequested || generation !== syncGeneration,
+        signal: syncWaitController.signal
+      });
+      if (generation !== syncGeneration) return;
+      if (result.hasMore && (result.notes.length === 0 || result.nextCursor === cursor || result.nextCursor === '0')) {
+        throw new Error('接口没有返回有效的下一页，已保留进度，请稍后继续。');
+      }
+      const pageMerge = mergeNotes(session.notes, result.notes);
+      if (result.hasMore && pageMerge.addedCount === 0) {
+        throw new Error('接口重复返回了同一批笔记，已保留进度，请稍后继续。');
+      }
+      session.notes = pageMerge.merged;
+      session.cursor = result.nextCursor;
+      session.hasMore = result.hasMore;
+      session.total = result.total;
+      if (session.mode === 'recent') {
+        const unchanged = result.notes.length > 0 && result.notes.every(note => baseline.get(getNoteId(note)) === syncNoteFingerprint(note));
+        session.unchangedPages = unchanged ? session.unchangedPages + 1 : 0;
+        if (session.unchangedPages >= 2) session.hasMore = false;
+      }
+      publishSyncNotes(result.notes);
+      updateSyncToolbar();
+      saveViewState({ immediate: true });
+      await flushPendingViewStateWrites();
+    }
+    if (generation !== syncGeneration) return;
+    if (!session.hasMore) {
+      if (session.mode === 'full') publishSyncNotes(session.notes, { complete: true });
+      syncSession = null;
+      showStatus(session.mode === 'full'
+        ? `同步完成，共整理 ${getAllScopeNotesSource().length} 条笔记`
+        : '近期变化已检查。如需核对全部历史笔记和删除，请使用“完整重新同步”。', 'success');
+    } else {
+      session.status = 'paused';
+      showStatus('同步已暂停，进度已保存。', 'info');
+    }
+  } catch (error) {
+    if (generation !== syncGeneration) return;
+    session.status = 'paused';
+    session.error = error.code === 'SYNC_PAUSED' ? '' : error.message || '同步暂时中断，进度已保留。';
+    showStatus(session.error || '同步已暂停，进度已保存。', session.error ? 'error' : 'info');
+  } finally {
+    if (generation === syncGeneration) {
+      syncRunning = false;
+      syncWaitMessage = '';
+      updateLoadButtons();
+      saveViewState({ immediate: true });
+      await flushPendingViewStateWrites();
+      if (!syncSession && !syncPauseRequested && ownedKnowledgeBases.length === 0) {
+        loadOwnedKnowledgeBases({ silent: true, preserveExisting: true });
+      }
+    }
+  }
 }
 
 function runKeywordSearch() {
   keyword = searchInput.value.trim();
+  applyFilters();
+}
+
+function clearDateFilter() {
+  activeDatePreset = '';
+  customDateStart = '';
+  customDateEnd = '';
+  if (filterElements.dateStartInput) filterElements.dateStartInput.value = '';
+  if (filterElements.dateEndInput) filterElements.dateEndInput.value = '';
+  filterElements.dateFilterError?.classList.remove('visible');
+}
+
+function selectDatePreset(preset) {
+  if (!DATE_PRESETS[preset]) return;
+
+  if (activeDatePreset === preset) {
+    clearDateFilter();
+  } else {
+    activeDatePreset = preset;
+    customDateStart = '';
+    customDateEnd = '';
+  }
+
+  selectedNotes.clear();
+  applyFilters();
+  filterElements.dateDropdown?.classList.remove('open');
+  filterElements.dateDropdownBtn?.setAttribute('aria-expanded', 'false');
+}
+
+function applyCustomDateRange() {
+  const nextStart = filterElements.dateStartInput?.value || '';
+  const nextEnd = filterElements.dateEndInput?.value || '';
+  const invalidRange = nextStart && nextEnd && nextStart > nextEnd;
+
+  filterElements.dateFilterError?.classList.toggle('visible', Boolean(invalidRange));
+  if (invalidRange) return;
+
+  activeDatePreset = '';
+  customDateStart = nextStart;
+  customDateEnd = nextEnd;
+  selectedNotes.clear();
   applyFilters();
 }
 
@@ -2793,6 +2480,8 @@ function resetFilters() {
   knowledgeSearchKeyword = '';
   tagSearchKeyword = '';
   activeTagFilters.clear();
+  clearDateFilter();
+  activeNoteType = '';
   selectedNotes.clear();
 
   if (searchInput) searchInput.value = '';
@@ -2841,7 +2530,7 @@ function buildMarkdown(note, mode = 'original') {
     `# ${title}`,
     '',
     `- 日期：${getNoteDate(note) || '未知'}`,
-    `- 类型：${note.note_type || 'text'}`,
+    `- 类型：${getNoteTypeLabel(note)}`,
     `- 标签：${getTags(note).join(' / ') || '无'}`,
     `- 归属：${getTopics(note).join(' / ') || '无'}`,
     ''
@@ -3018,11 +2707,26 @@ async function batchDownload(mode = 'original') {
 function toggleDropdown(dropdown) {
   if (!dropdown) return;
   const isOpen = dropdown.classList.contains('open');
-  filterElements.ownedKnowledgeDropdown?.classList.remove('open');
-  filterElements.tagDropdown?.classList.remove('open');
+  closeFilterDropdowns();
   if (!isOpen) {
     dropdown.classList.add('open');
+    dropdown.querySelector('.dropdown-trigger')?.setAttribute('aria-expanded', 'true');
   }
+}
+
+function closeFilterDropdowns() {
+  document.querySelectorAll('.filter-dropdown').forEach(dropdown => {
+    dropdown.classList.remove('open');
+    dropdown.querySelector('.dropdown-trigger')?.setAttribute('aria-expanded', 'false');
+  });
+}
+
+function selectNoteType(type) {
+  if (type && !Object.prototype.hasOwnProperty.call(NOTE_TYPES, type)) return;
+  activeNoteType = type;
+  selectedNotes.clear();
+  applyFilters();
+  closeFilterDropdowns();
 }
 
 async function saveConfig() {
@@ -3044,7 +2748,8 @@ async function saveConfig() {
   updateClearConfigVisibility();
 
   closeSettings();
-  showEmpty('下一步是同步笔记', `点“${getFirstSyncButtonLabel()}”后，这里就会开始出现内容。`, [
+  updateLoadButtons();
+  showEmpty('开始同步笔记', `点“${getFirstSyncButtonLabel()}”后，这里就会开始出现内容。`, [
     {
       id: 'syncAfterSave',
       label: getFirstSyncButtonLabel(),
@@ -3058,14 +2763,19 @@ async function saveConfig() {
 }
 
 function clearConfig() {
+  syncWaitController?.abort();
+  syncGeneration += 1;
+  syncPauseRequested = true;
+  syncRunning = false;
+  syncSession = null;
+  activeNoteType = '';
   clearConfigLocal();
   clearViewState();
-  pendingLoadAll = false;
-  currentLoadToken += 1;
   knowledgeBaseSyncState = 'idle';
   activeKnowledgeBaseId = '';
   keyword = '';
   activeTagFilters.clear();
+  clearDateFilter();
   knowledgeSearchKeyword = '';
   tagSearchKeyword = '';
   ownedKnowledgeBases = [];
@@ -3096,6 +2806,49 @@ function clearConfig() {
 }
 
 function bindEvents() {
+  const compactLayout = window.matchMedia('(max-width: 760px)');
+  let previewTrigger = null;
+
+  const closeCompactPreview = () => {
+    detailView?.classList.remove('mobile-detail-open');
+    (previewTrigger?.isConnected ? previewTrigger : searchInput)?.focus({ preventScroll: true });
+  };
+
+  compactLayout.addEventListener('change', () => {
+    detailView?.classList.remove('mobile-detail-open');
+  });
+
+  filterElements.syncPauseBtn?.addEventListener('click', pauseSyncSession);
+  filterElements.syncResumeBtn?.addEventListener('click', () => runSyncSession());
+  filterElements.syncFullBtn?.addEventListener('click', () => runSyncSession({ full: true }));
+  notesContainer.addEventListener('click', event => {
+    const item = event.target.closest('.note-item');
+    if (!item || event.target.closest('.note-checkbox')) return;
+    const tag = event.target.closest('.note-tag-trigger');
+    if (tag) {
+      activeTagFilters.clear();
+      activeTagFilters.add(tag.dataset.tagValue);
+      selectedNotes.clear();
+      applyFilters();
+      return;
+    }
+    const topic = event.target.closest('.note-topic-trigger');
+    if (topic) { filterByTopic(topic.dataset.topicId || '', topic.dataset.topicName || ''); return; }
+    const type = event.target.closest('.note-type-trigger');
+    if (type) { selectNoteType(type.dataset.noteType); return; }
+    openNoteDetail(item.dataset.noteId);
+    detailView?.scrollTo(0, 0);
+    if (compactLayout.matches) {
+      previewTrigger = item.querySelector('.note-title');
+      detailView?.classList.add('mobile-detail-open');
+      detailTitle.focus({ preventScroll: true });
+    }
+  });
+  notesContainer.addEventListener('change', event => {
+    if (event.target.matches('.note-check')) {
+      toggleSelection(event.target.closest('.note-item').dataset.noteId, event.target.checked);
+    }
+  });
   saveConfigBtn?.addEventListener('click', event => {
     event.preventDefault();
     handleSettingsPrimaryAction();
@@ -3112,10 +2865,7 @@ function bindEvents() {
     event.preventDefault();
     refreshNotes();
   });
-  backBtn?.addEventListener('click', event => {
-    event.preventDefault();
-    detailView?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
+  backBtn?.addEventListener('click', closeCompactPreview);
   downloadOriginalBtn?.addEventListener('click', event => {
     event.preventDefault();
     downloadSingle('original');
@@ -3171,6 +2921,23 @@ function bindEvents() {
     event.stopPropagation();
     toggleDropdown(filterElements.tagDropdown);
   });
+  filterElements.dateDropdownBtn?.addEventListener('click', event => {
+    event.stopPropagation();
+    toggleDropdown(filterElements.dateDropdown);
+  });
+  filterElements.typeDropdownBtn?.addEventListener('click', event => {
+    event.stopPropagation();
+    toggleDropdown(filterElements.typeDropdown);
+  });
+  filterElements.typeFilters?.addEventListener('click', event => {
+    const button = event.target.closest('[data-note-type]');
+    if (button) selectNoteType(button.dataset.noteType);
+  });
+  filterElements.dateDropdown?.querySelectorAll('[data-date-preset]').forEach(button => {
+    button.addEventListener('click', () => selectDatePreset(button.dataset.datePreset || ''));
+  });
+  filterElements.dateStartInput?.addEventListener('change', applyCustomDateRange);
+  filterElements.dateEndInput?.addEventListener('change', applyCustomDateRange);
   filterElements.ownedKnowledgeFilterSearch?.addEventListener('input', () => {
     knowledgeSearchKeyword = filterElements.ownedKnowledgeFilterSearch.value.trim();
     renderKnowledgeBaseOptions();
@@ -3186,9 +2953,13 @@ function bindEvents() {
   });
   document.addEventListener('click', event => {
     if (!event.target.closest('.filter-dropdown')) {
-      filterElements.ownedKnowledgeDropdown?.classList.remove('open');
-      filterElements.tagDropdown?.classList.remove('open');
+      closeFilterDropdowns();
     }
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+    closeFilterDropdowns();
+    if (!settingsOverlay?.open && detailView?.classList.contains('mobile-detail-open')) closeCompactPreview();
   });
   window.addEventListener('resize', positionSyncGuide);
   window.addEventListener('scroll', positionSyncGuide, true);
@@ -3205,6 +2976,8 @@ window.__getNotesApp = {
   saveConfig,
   clearConfig,
   refreshNotes,
+  pauseSync: pauseSyncSession,
+  fullSync: () => runSyncSession({ full: true }),
   batchDownloadOriginal: () => batchDownload('original'),
   batchDownloadAi: () => batchDownload('ai')
 };
@@ -3213,15 +2986,15 @@ bindEvents();
 
 (async () => {
   fillDetailPlaceholder();
-  updateStats();
+  updateBatchActions();
   renderFilters();
   updateResultsMeta();
 
   const configured = await checkConfig();
+  updateLoadButtons();
   if (configured) {
     const restored = await restoreViewState();
     if (restored) {
-      showStatus('已恢复上次浏览内容', 'success');
       renderFilters();
       updateResultsMeta();
       if (ENABLE_KNOWLEDGE_BASE_FILTER && ownedKnowledgeBases.length === 0) {
@@ -3243,7 +3016,7 @@ bindEvents();
       showSyncGuide();
     }
   } else {
-    showEmpty('先完成连接设置', '先保存 API Key 和 Client ID，然后就可以开始查看内容。', [
+    showEmpty('连接得到大脑', '保存 API Key 和 Client ID 后，就可以同步和导出笔记。', [
       {
         id: 'settings',
         label: '开始设置',
@@ -3251,6 +3024,5 @@ bindEvents();
         handler: openSettings
       }
     ]);
-    openSettings();
   }
 })();

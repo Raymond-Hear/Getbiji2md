@@ -1030,7 +1030,7 @@
       backdrop-filter: blur(12px);
     }
 
-    .settings-overlay.open {
+    .settings-overlay[open] {
       display: flex;
     }
 
@@ -1638,6 +1638,7 @@
       justify-content: flex-end;
     }
   </style>
+  <link rel="stylesheet" href="assets/tool.css">
 </head>
 <body>
   <div class="container">
@@ -1651,15 +1652,15 @@
                 <span class="eyebrow">For Dedao Brain</span>
                 <span class="hero-badge">V0.1 Open Source</span>
               </div>
-              <h1>先确认要保留什么，再导出到你自己的系统</h1>
-              <p>Get2MD 会先把得到大脑里的内容整理到眼前，再让你筛选、预览、导出为 Markdown。适合备份、归档和迁移到自己的知识库与写作流。</p>
-              <div class="hero-note">你的 API Key 和笔记内容只保存在当前浏览器；先确认内容，再决定带走什么。</div>
+              <h1>笔记导出</h1>
+              <p>同步并筛选得到大脑笔记，下载原文或 AI 总结为 Markdown。</p>
+              <div class="hero-note">连接凭证和笔记缓存保存在当前浏览器。</div>
             </div>
           </div>
           <div class="topbar-actions">
             <a class="btn btn-secondary" href="index.html">返回介绍</a>
-            <button id="openSettingsBtn" class="btn btn-secondary" onclick="window.__getNotesApp?.openSettings()">连接设置</button>
-            <button id="refreshBtn" class="btn btn-primary" onclick="window.__getNotesApp?.refreshNotes()">开始整理我的内容</button>
+            <button id="openSettingsBtn" class="btn btn-secondary">连接设置</button>
+            <button id="refreshBtn" class="btn btn-primary">同步笔记</button>
           </div>
         </div>
         <div class="hero-foot">
@@ -1696,25 +1697,25 @@
         </article>
         <article class="workflow-step">
           <span>2</span>
-          <strong>整理</strong>
-          <p>先把内容拉到当前列表。</p>
+          <strong>同步</strong>
+          <p>读取你的历史笔记。</p>
         </article>
         <article class="workflow-step">
           <span>3</span>
           <strong>筛选</strong>
-          <p>按知识库、标签和关键词聚焦。</p>
+          <p>按知识库、类型、标签或时间筛选。</p>
         </article>
         <article class="workflow-step">
           <span>4</span>
           <strong>导出</strong>
-          <p>带走原文或 AI 总结。</p>
+          <p>下载原文或 AI 总结。</p>
         </article>
       </section>
 
       <section class="guide-strip" aria-label="常见整理入口">
         <div class="guide-strip-copy">
-          <strong>不确定从哪种整理任务开始？</strong>
-          <p>可以直接从最常见的三类任务入手：按知识库收拢、保留原文与摘要，或筛选后批量导出。</p>
+          <strong>使用帮助</strong>
+          <p>查看知识库整理、单篇导出和批量下载的操作步骤。</p>
         </div>
         <div class="guide-strip-actions">
           <a class="btn btn-secondary" href="help.html#knowledge-base-export">按知识库整理</a>
@@ -1729,47 +1730,20 @@
             <div class="panel-title">
               <div>
                 <h2>搜索与筛选</h2>
-                <div class="panel-subtitle">先选知识库，再用标签和关键词缩小范围。</div>
+                <div class="panel-subtitle">按条件缩小笔记范围。</div>
               </div>
               <button id="clearFiltersBtn" class="btn btn-ghost">清空筛选</button>
             </div>
 
-            <div id="statusBar" class="status-bar"></div>
+            <div id="statusBar" class="status-bar" role="status"></div>
 
             <div class="search-row">
-              <input type="text" id="searchInput" placeholder="搜索标题、标签，或已经整理出的正文内容">
+              <input type="text" id="searchInput" aria-label="搜索笔记" placeholder="搜索标题、标签或正文">
               <button id="searchBtn" class="btn btn-primary">搜索</button>
               <button id="clearSearchBtn" class="btn btn-secondary">清空搜索</button>
             </div>
 
-            <div class="filters-grid">
-              <div id="topicDropdown" class="filter-dropdown">
-                <button id="topicDropdownBtn" class="btn dropdown-trigger" type="button">
-                  <span class="dropdown-label">
-                    <strong>知识库筛选</strong>
-                    <span id="topicDropdownLabel">同步后可选择</span>
-                  </span>
-                  <span class="dropdown-arrow">⌄</span>
-                </button>
-                <div class="dropdown-panel">
-                  <input id="topicFilterSearch" class="filter-search" type="text" placeholder="筛选知识库名称">
-                  <div id="topicFilters" class="filter-options"></div>
-                </div>
-              </div>
-              <div id="tagDropdown" class="filter-dropdown">
-                <button id="tagDropdownBtn" class="btn dropdown-trigger" type="button">
-                  <span class="dropdown-label">
-                    <strong>标签筛选</strong>
-                    <span id="tagDropdownLabel">同步后可选择</span>
-                  </span>
-                  <span class="dropdown-arrow">⌄</span>
-                </button>
-                <div class="dropdown-panel">
-                  <input id="tagFilterSearch" class="filter-search" type="text" placeholder="筛选标签名称">
-                  <div id="tagFilters" class="filter-options"></div>
-                </div>
-              </div>
-            </div>
+            <div class="filters-grid"></div>
 
             <div class="current-filters-block">
               <h3 class="current-filters-title">当前筛选</h3>
@@ -1791,15 +1765,15 @@
               </div>
               <div id="batchActions" class="batch-actions" style="display: none;">
                 <span class="batch-counter">已选 <span id="selectedCount">0</span> 条</span>
-                <button id="batchDownloadBtn" class="btn btn-primary" onclick="window.__getNotesApp?.batchDownloadOriginal()">下载原文</button>
-                <button id="batchDownloadAiBtn" class="btn btn-accent" onclick="window.__getNotesApp?.batchDownloadAi()">下载 AI 总结</button>
+                <button id="batchDownloadBtn" class="btn btn-primary">下载原文</button>
+                <button id="batchDownloadAiBtn" class="btn btn-accent">下载 AI 总结</button>
               </div>
             </div>
 
             <div id="notesContainer" class="notes-container">
               <div class="empty-state">
                 <h3>还没有加载笔记</h3>
-                <p>先完成连接，再开始第一次整理。同步后你就能在这里筛选、预览，并决定要带走哪些内容。</p>
+                <p>完成连接后，就可以同步和导出笔记。</p>
               </div>
             </div>
 
@@ -1808,43 +1782,46 @@
 
         </div>
 
-        <aside id="detailView" class="note-detail">
+        <aside id="detailView" class="note-detail active" aria-label="笔记预览">
           <div class="detail-kicker">
-            <span class="detail-label">Preview</span>
+            <span class="detail-label">笔记预览</span>
             <button id="backBtn" class="btn btn-ghost back-btn">返回列表</button>
           </div>
-          <h2 class="detail-title" id="detailTitle">选择一条内容，先确认再导出</h2>
-          <div class="detail-meta" id="detailMeta">这里会显示类型、日期、知识库和标签。</div>
-          <div id="detailEmptyHint" class="detail-empty-hint">先从左侧打开一条内容，确认原文和 AI 总结，再决定导出哪一部分。</div>
+          <h2 class="detail-title" id="detailTitle" tabindex="-1"></h2>
+          <div class="detail-meta" id="detailMeta"></div>
+          <p class="detail-status" id="detailStatus" role="status"></p>
+          <div id="detailEmptyHint" class="detail-empty-hint">选择一条笔记查看原文和 AI 总结。</div>
 
-          <div class="detail-export-label">导出这条笔记</div>
-          <div class="detail-actions">
-            <button id="downloadOriginalBtn" class="btn btn-primary">下载原文</button>
-            <button id="downloadAiBtn" class="btn btn-accent">下载 AI 总结</button>
-          </div>
+          <div class="detail-document">
+            <div class="detail-export-label">导出这条笔记</div>
+            <div class="detail-actions">
+              <button id="downloadOriginalBtn" class="btn btn-primary">下载原文</button>
+              <button id="downloadAiBtn" class="btn btn-accent">下载 AI 总结</button>
+            </div>
 
-          <div class="content-section">
-            <div class="content-label">原文内容</div>
-            <div id="originalContent" class="content-box empty">打开一条笔记后，这里会显示原文。</div>
-          </div>
+            <div class="content-section">
+              <div class="content-label">原文内容</div>
+              <div id="originalContent" class="content-box empty">打开一条笔记后，这里会显示原文。</div>
+            </div>
 
-          <div class="content-section">
-            <div class="content-label">AI 总结</div>
-            <div id="aiContent" class="content-box empty">如果该笔记有 AI 总结，这里会显示对应内容。</div>
+            <div class="content-section">
+              <div class="content-label">AI 总结</div>
+              <div id="aiContent" class="content-box empty">如果该笔记有 AI 总结，这里会显示对应内容。</div>
+            </div>
           </div>
         </aside>
       </div>
     </div>
   </div>
 
-  <div id="settingsOverlay" class="settings-overlay">
+  <dialog id="settingsOverlay" class="settings-overlay" aria-labelledby="settingsTitle">
     <div class="settings-modal">
       <div class="settings-head">
         <div class="settings-copy">
-          <h2>先连接你的得到大脑内容</h2>
-          <p>只需要 API Key 和 Client ID 两项信息，就可以开始第一次整理。</p>
+          <h2 id="settingsTitle">连接得到大脑</h2>
+          <p>准备好 API Key 和 Client ID。</p>
         </div>
-        <button id="closeSettingsBtn" class="btn btn-ghost" onclick="window.__getNotesApp?.closeSettings()">关闭</button>
+        <button id="closeSettingsBtn" class="btn btn-ghost">关闭</button>
       </div>
       <div class="settings-stepper" aria-label="设置进度">
         <span class="settings-step-dot is-active" data-settings-dot="0"></span>
@@ -1861,35 +1838,35 @@
         <p class="member-note">开放平台能力需要得到大脑会员。还没有会员？<a href="https://www.biji.com/i/0D8SZ0N4E3?os=ANDROID&referral=0D8SZ0N4E3&trace=eyJzX3VzZXJfaWQiOjEyMDIwOCwic19lbnRpdHlfdHlwZSI6Imludml0ZV9yZWZlcnJhbCIsInNfZW50aXR5X2lkIjoiNjhlMDA0OWY4ZTM0ZmNiNGQ2NGQ1MWM1In0%3D&uid=XyZzEwqy" target="_blank" rel="noopener noreferrer">领取 3 天体验</a>。</p>
       </div>
       <div class="privacy-note settings-step is-active" data-settings-step="0">
-        信息只保存在当前浏览器，本项目不会替你托管这些凭证。
+        连接凭证保存在当前浏览器。
       </div>
       <div class="settings-form">
         <div class="field settings-step" data-settings-step="1">
           <label for="apiKeyInput">API Key</label>
-          <input type="password" id="apiKeyInput" placeholder="gk_live_xxx">
+          <input type="password" id="apiKeyInput" autocomplete="off" spellcheck="false" placeholder="gk_live_xxx">
           <div class="field-hint">从得到大脑开放平台复制。</div>
         </div>
         <div class="field settings-step" data-settings-step="2">
           <label for="clientIdInput">Client ID</label>
-          <input type="text" id="clientIdInput" placeholder="cli_xxx">
+          <input type="password" id="clientIdInput" autocomplete="off" spellcheck="false" placeholder="cli_xxx">
           <div class="field-hint">和 API Key 同一处获取。</div>
         </div>
         <div class="settings-step settings-step-card" data-settings-step="3">
           <h3>开始第一次整理</h3>
-          <p>保存后会自动开始同步，把内容整理到当前页面。</p>
+          <p>保存后，点击「同步笔记」开始读取。</p>
         </div>
       </div>
       <div id="settingsStepError" class="settings-step-error" role="alert"></div>
       <div class="settings-foot">
         <div class="panel-subtitle"></div>
         <div class="settings-actions">
-          <button id="clearConfigBtn" class="btn btn-danger is-hidden" onclick="window.__getNotesApp?.clearConfig()">清除本地配置</button>
+          <button id="clearConfigBtn" class="btn btn-danger is-hidden">清除本地配置</button>
           <button id="settingsBackBtn" class="btn btn-secondary is-hidden" type="button">上一步</button>
           <button id="saveConfigBtn" class="btn btn-primary" type="button">下一步</button>
         </div>
       </div>
     </div>
-  </div>
+  </dialog>
 
   <script src="app.js"></script>
   <script defer src="/_vercel/insights/script.js"></script>
